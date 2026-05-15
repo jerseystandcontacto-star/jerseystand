@@ -7,15 +7,40 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const body = await req.json()
-  const { variants, ...productData } = body
+  const { variants, ...raw } = body
   const supabase = createAdminClient()
+
+  // Solo columnas conocidas — evita enviar campos que no existen en la BD
+  const updateData: Record<string, unknown> = {
+    name:          raw.name,
+    slug:          raw.slug,
+    description:   raw.description   ?? null,
+    category:      raw.category      ?? 'liga-mx',
+    team:          raw.team          ?? '',
+    price:         Number(raw.price) || 0,
+    compare_price: raw.compare_price  ? Number(raw.compare_price) : null,
+    images:        raw.images        ?? [],
+    tags:          raw.tags          ?? [],
+    active:        raw.active        ?? true,
+    featured:      raw.featured      ?? false,
+    marca:         raw.marca         ?? null,
+    anio:          raw.anio          ?? null,
+    liga:          raw.liga          ?? null,
+    genero:        raw.genero        ?? null,
+    temporada:     raw.temporada     ?? null,
+  }
+
+  console.log('[PUT /api/admin/products] actualizando id:', id)
 
   const { error } = await supabase
     .from('products')
-    .update({ ...productData, updated_at: new Date().toISOString() })
+    .update(updateData)
     .eq('id', id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[PUT /api/admin/products] error BD:', error.code, error.message)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   // Actualizar variantes: borrar las viejas e insertar las nuevas
   if (variants?.length) {

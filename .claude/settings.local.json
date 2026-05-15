@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Copy-Item *)",
+      "PowerShell(Get-ChildItem C:\\\\Users\\\\gonza\\\\jerseystand -Recurse -Name | Where-Object { $_ -notmatch 'node_modules|\\\\.next|package-lock' } | Sort-Object)",
+      "PowerShell(New-Item *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)"
+    ]
+  }
+}

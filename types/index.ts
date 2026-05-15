@@ -32,6 +32,11 @@ export interface Product {
   description: string | null
   category: ProductCategory
   team: string
+  marca: string | null
+  anio: string | null
+  liga: string | null
+  genero: string | null
+  temporada: string | null
   price: number
   compare_price: number | null
   images: string[]
@@ -265,6 +270,31 @@ export const PRODUCT_TYPES: { value: ProductType; label: string }[] = [
   { value: 'tercero', label: 'Tercero' },
   { value: 'portero', label: 'Portero' },
 ]
+
+export const BRANDS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Umbro', 'Otra'] as const
+
+export const LEAGUES = [
+  'Liga MX',
+  'Selección Mexicana',
+  'Premier League',
+  'La Liga',
+  'Serie A',
+  'Bundesliga',
+  'Ligue 1',
+  'Champions League',
+  'Selección Internacional',
+  'Otra',
+] as const
+
+export const GENDERS = ['Hombre', 'Mujer', 'Niño'] as const
+
+export const SEASON_TYPES = [
+  'Local',
+  'Visitante',
+  'Tercero',
+  'Retro',
+  'Edición Especial',
+] as const
 
 export const SHIPPING_OPTIONS: {
   type: ShippingType

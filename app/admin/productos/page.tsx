@@ -9,7 +9,21 @@ import { Badge } from '@/components/ui/Badge'
 import { ImageUploader } from '@/components/admin/ImageUploader'
 import { formatPrice } from '@/lib/utils'
 import type { Product, ProductVariant } from '@/types'
-import { CATEGORIES, SIZES, PRODUCT_TYPES } from '@/types'
+import { SIZES, BRANDS, LEAGUES, GENDERS, SEASON_TYPES } from '@/types'
+
+// Derive legacy category from liga for backward compat with the public catalog
+function ligaToCategory(liga: string) {
+  if (liga === 'Liga MX') return 'liga-mx'
+  if (liga === 'Selección Mexicana' || liga === 'Selección Internacional') return 'seleccion-mexicana'
+  if (['Premier League', 'La Liga', 'Serie A', 'Bundesliga', 'Ligue 1', 'Champions League'].includes(liga))
+    return 'europa'
+  if (liga === 'Retro' || liga === 'Vintage') return 'retro-vintage'
+  return 'liga-mx'
+}
+
+function totalStock(product: Product) {
+  return product.variants?.reduce((s, v) => s + (v.stock ?? 0), 0) ?? 0
+}
 
 export default function AdminProductosPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -22,7 +36,7 @@ export default function AdminProductosPage() {
   const fetchProducts = async () => {
     const res = await fetch('/api/admin/products')
     const data = await res.json()
-    setProducts(data)
+    setProducts(Array.isArray(data) ? data : [])
     setLoading(false)
   }
 
@@ -41,11 +55,6 @@ export default function AdminProductosPage() {
     fetchProducts()
   }
 
-  const handleEdit = (product: Product) => {
-    setEditingProduct(product)
-    setShowForm(true)
-  }
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -60,8 +69,8 @@ export default function AdminProductosPage() {
         </Button>
       </div>
 
-      {/* Lista de productos */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Tabla */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
         {loading ? (
           <div className="text-center py-16 text-gray-400">Cargando productos...</div>
         ) : products.length === 0 ? (
@@ -72,64 +81,68 @@ export default function AdminProductosPage() {
             </Button>
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full min-w-[900px]">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Producto</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Categoría</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Precio</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Marca</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Liga</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Año</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Temporada</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Género</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Precio</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Stock</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {products.map((product) => (
                 <tr key={product.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                         {product.images[0] && (
                           <Image src={product.images[0]} alt={product.name} fill className="object-cover" />
                         )}
                       </div>
                       <div>
-                        <p className="font-semibold text-sm text-[#111410]">{product.name}</p>
+                        <p className="font-semibold text-sm text-[#111410] leading-tight">{product.name}</p>
                         <p className="text-xs text-gray-400">{product.team}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-gray-600 capitalize">
-                      {CATEGORIES.find((c) => c.value === product.category)?.label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-sm text-[#1a5c2e]">
-                    {formatPrice(product.price)}
-                  </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3 text-sm text-gray-600">{product.marca || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{product.liga || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{product.anio || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{product.temporada || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{product.genero || '—'}</td>
+                  <td className="px-4 py-3 font-bold text-sm text-[#1a5c2e]">{formatPrice(product.price)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{totalStock(product)}</td>
+                  <td className="px-4 py-3">
                     <Badge variant={product.active ? 'success' : 'default'}>
                       {product.active ? 'Activo' : 'Inactivo'}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
                       <button
-                        onClick={() => handleEdit(product)}
-                        className="p-2 text-gray-400 hover:text-[#1a5c2e] transition-colors"
+                        onClick={() => { setEditingProduct(product); setShowForm(true) }}
+                        className="p-1.5 text-gray-400 hover:text-[#1a5c2e] transition-colors"
                         title="Editar"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => toggleActive(product)}
-                        className="p-2 text-gray-400 hover:text-[#1a5c2e] transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-[#1a5c2e] transition-colors"
                         title={product.active ? 'Desactivar' : 'Activar'}
                       >
                         {product.active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                       <button
                         onClick={() => deleteProduct(product.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
                         title="Eliminar"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -143,7 +156,6 @@ export default function AdminProductosPage() {
         )}
       </div>
 
-      {/* Modal de formulario */}
       {showForm && (
         <ProductFormModal
           product={editingProduct}
@@ -155,6 +167,14 @@ export default function AdminProductosPage() {
   )
 }
 
+// ─── Form Modal ───────────────────────────────────────────────────────────────
+
+const brandOptions   = BRANDS.map((b) => ({ value: b, label: b }))
+const leagueOptions  = LEAGUES.map((l) => ({ value: l, label: l }))
+const genderOptions  = GENDERS.map((g) => ({ value: g, label: g }))
+const seasonOptions  = SEASON_TYPES.map((s) => ({ value: s, label: s }))
+const sizeOptions    = SIZES.filter((s) => s !== 'XS').map((s) => ({ value: s, label: s }))
+
 function ProductFormModal({
   product,
   onClose,
@@ -165,32 +185,35 @@ function ProductFormModal({
   onSave: () => void
 }) {
   const [formData, setFormData] = useState({
-    name: product?.name || '',
-    description: product?.description || '',
-    category: product?.category || 'liga-mx',
-    team: product?.team || '',
-    price: product?.price?.toString() || '',
+    name:          product?.name          || '',
+    marca:         product?.marca         || '',
+    liga:          product?.liga          || '',
+    team:          product?.team          || '',
+    anio:          product?.anio          || '',
+    temporada:     product?.temporada     || '',
+    genero:        product?.genero        || '',
+    price:         product?.price?.toString()         || '',
     compare_price: product?.compare_price?.toString() || '',
-    featured: product?.featured || false,
-    active: product?.active ?? true,
+    description:   product?.description   || '',
+    featured:      product?.featured      || false,
+    active:        product?.active        ?? true,
   })
+
   const [variants, setVariants] = useState<Partial<ProductVariant>[]>(
-    product?.variants || [{ size: 'M', type: 'local', season: '2024/25', stock: 0 }]
+    product?.variants?.length
+      ? product.variants
+      : [{ size: 'M', stock: 0 }]
   )
-  const [images, setImages] = useState<string[]>(product?.images || [])
+  const [images, setImages]   = useState<string[]>(product?.images || [])
   const [loading, setLoading] = useState(false)
 
-  const addVariant = () => {
-    setVariants((prev) => [...prev, { size: 'M', type: 'local', season: '2024/25', stock: 0 }])
-  }
+  const set = (field: string, value: unknown) =>
+    setFormData((f) => ({ ...f, [field]: value }))
 
-  const removeVariant = (i: number) => {
-    setVariants((prev) => prev.filter((_, idx) => idx !== i))
-  }
-
-  const updateVariant = (i: number, field: string, value: string | number) => {
-    setVariants((prev) => prev.map((v, idx) => (idx === i ? { ...v, [field]: value } : v)))
-  }
+  const addVariant    = () => setVariants((v) => [...v, { size: 'M', stock: 0 }])
+  const removeVariant = (i: number) => setVariants((v) => v.filter((_, idx) => idx !== i))
+  const updateVariant = (i: number, field: string, value: string | number) =>
+    setVariants((v) => v.map((item, idx) => idx === i ? { ...item, [field]: value } : item))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -198,13 +221,18 @@ function ProductFormModal({
 
     const payload = {
       ...formData,
-      price: parseFloat(formData.price),
+      price:         parseFloat(formData.price),
       compare_price: formData.compare_price ? parseFloat(formData.compare_price) : null,
+      category:      ligaToCategory(formData.liga),
       images,
-      variants,
+      variants: variants.map((v) => ({
+        ...v,
+        type:   'local',   // kept in DB schema but not shown in UI
+        season: formData.anio || '',
+      })),
     }
 
-    const url = product ? `/api/admin/products/${product.id}` : '/api/admin/products'
+    const url    = product ? `/api/admin/products/${product.id}` : '/api/admin/products'
     const method = product ? 'PUT' : 'POST'
 
     await fetch(url, {
@@ -220,6 +248,7 @@ function ProductFormModal({
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl w-full max-w-2xl my-8">
+        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="font-display text-2xl text-[#111410]">
             {product ? 'EDITAR PRODUCTO' : 'NUEVO PRODUCTO'}
@@ -230,34 +259,72 @@ function ProductFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
-          {/* Datos básicos */}
+          {/* Nombre */}
+          <Input
+            label="Nombre del producto"
+            value={formData.name}
+            onChange={(e) => set('name', e.target.value)}
+            required
+            placeholder="Ej. Jersey América Local 2024-25"
+          />
+
+          {/* Marca + Liga */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Input
-                label="Nombre del producto"
-                value={formData.name}
-                onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
-                required
-              />
-            </div>
-            <Input
-              label="Equipo / Marca"
-              value={formData.team}
-              onChange={(e) => setFormData((f) => ({ ...f, team: e.target.value }))}
-              required
+            <Select
+              label="Marca"
+              value={formData.marca}
+              onChange={(e) => set('marca', e.target.value)}
+              options={[{ value: '', label: 'Seleccionar marca' }, ...brandOptions]}
             />
             <Select
-              label="Categoría"
-              value={formData.category}
-              onChange={(e) => setFormData((f) => ({ ...f, category: e.target.value as any }))}
-              options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
+              label="Liga"
+              value={formData.liga}
+              onChange={(e) => set('liga', e.target.value)}
+              options={[{ value: '', label: 'Seleccionar liga' }, ...leagueOptions]}
             />
+          </div>
+
+          {/* Equipo + Año */}
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Equipo"
+              value={formData.team}
+              onChange={(e) => set('team', e.target.value)}
+              placeholder="Ej. América, Real Madrid..."
+              required
+            />
+            <Input
+              label="Año"
+              value={formData.anio}
+              onChange={(e) => set('anio', e.target.value)}
+              placeholder="Ej. 2024-25, 2023-24, 1998"
+            />
+          </div>
+
+          {/* Temporada + Género */}
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Temporada"
+              value={formData.temporada}
+              onChange={(e) => set('temporada', e.target.value)}
+              options={[{ value: '', label: 'Seleccionar temporada' }, ...seasonOptions]}
+            />
+            <Select
+              label="Género"
+              value={formData.genero}
+              onChange={(e) => set('genero', e.target.value)}
+              options={[{ value: '', label: 'Seleccionar género' }, ...genderOptions]}
+            />
+          </div>
+
+          {/* Precio */}
+          <div className="grid grid-cols-2 gap-4">
             <Input
               label="Precio (MXN)"
               type="number"
               step="0.01"
               value={formData.price}
-              onChange={(e) => setFormData((f) => ({ ...f, price: e.target.value }))}
+              onChange={(e) => set('price', e.target.value)}
               required
             />
             <Input
@@ -265,17 +332,19 @@ function ProductFormModal({
               type="number"
               step="0.01"
               value={formData.compare_price}
-              onChange={(e) => setFormData((f) => ({ ...f, compare_price: e.target.value }))}
+              onChange={(e) => set('compare_price', e.target.value)}
+              placeholder="Precio tachado"
             />
-            <div className="col-span-2">
-              <Textarea
-                label="Descripción"
-                value={formData.description}
-                onChange={(e) => setFormData((f) => ({ ...f, description: e.target.value }))}
-                rows={3}
-              />
-            </div>
           </div>
+
+          {/* Descripción */}
+          <Textarea
+            label="Descripción"
+            value={formData.description}
+            onChange={(e) => set('description', e.target.value)}
+            rows={3}
+            placeholder="Detalles del jersey, material, características..."
+          />
 
           {/* Opciones */}
           <div className="flex gap-6">
@@ -283,7 +352,7 @@ function ProductFormModal({
               <input
                 type="checkbox"
                 checked={formData.featured}
-                onChange={(e) => setFormData((f) => ({ ...f, featured: e.target.checked }))}
+                onChange={(e) => set('featured', e.target.checked)}
                 className="w-4 h-4 accent-[#1a5c2e]"
               />
               <span className="text-sm font-semibold">Producto destacado</span>
@@ -292,7 +361,7 @@ function ProductFormModal({
               <input
                 type="checkbox"
                 checked={formData.active}
-                onChange={(e) => setFormData((f) => ({ ...f, active: e.target.checked }))}
+                onChange={(e) => set('active', e.target.checked)}
                 className="w-4 h-4 accent-[#1a5c2e]"
               />
               <span className="text-sm font-semibold">Producto activo</span>
@@ -302,40 +371,32 @@ function ProductFormModal({
           {/* Imágenes */}
           <div>
             <p className="text-sm font-semibold text-[#111410] mb-2">
-              Imágenes{' '}
+              Fotos{' '}
               <span className="font-normal text-gray-400">(arrastra para reordenar — la primera es la portada)</span>
             </p>
             <ImageUploader images={images} onChange={setImages} />
           </div>
 
-          {/* Variantes */}
+          {/* Variantes — solo talla y stock */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-semibold text-[#111410]">Variantes (talla / tipo / stock)</p>
-              <button type="button" onClick={addVariant} className="text-sm text-[#1a5c2e] font-semibold hover:underline">
-                + Agregar
+              <p className="text-sm font-semibold text-[#111410]">Stock por talla</p>
+              <button
+                type="button"
+                onClick={addVariant}
+                className="text-sm text-[#1a5c2e] font-semibold hover:underline"
+              >
+                + Agregar talla
               </button>
             </div>
             <div className="flex flex-col gap-2">
               {variants.map((variant, i) => (
-                <div key={i} className="flex gap-2 items-end">
+                <div key={i} className="flex gap-3 items-end">
                   <Select
                     label={i === 0 ? 'Talla' : ''}
                     value={variant.size || 'M'}
                     onChange={(e) => updateVariant(i, 'size', e.target.value)}
-                    options={SIZES.map((s) => ({ value: s, label: s }))}
-                  />
-                  <Select
-                    label={i === 0 ? 'Tipo' : ''}
-                    value={variant.type || 'local'}
-                    onChange={(e) => updateVariant(i, 'type', e.target.value)}
-                    options={PRODUCT_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-                  />
-                  <Input
-                    label={i === 0 ? 'Temporada' : ''}
-                    value={variant.season || ''}
-                    onChange={(e) => updateVariant(i, 'season', e.target.value)}
-                    placeholder="2024/25"
+                    options={sizeOptions}
                   />
                   <Input
                     label={i === 0 ? 'Stock' : ''}
@@ -343,7 +404,7 @@ function ProductFormModal({
                     min="0"
                     value={variant.stock?.toString() || '0'}
                     onChange={(e) => updateVariant(i, 'stock', parseInt(e.target.value) || 0)}
-                    className="w-20"
+                    className="w-28"
                   />
                   <button
                     type="button"

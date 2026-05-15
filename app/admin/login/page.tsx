@@ -1,74 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useActionState, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, ShieldAlert, Loader2 } from 'lucide-react'
+import { loginAdmin } from './actions'
 
 export default function AdminLoginPage() {
-  const router       = useRouter()
   const searchParams = useSearchParams()
-  const supabase     = createClient()
-
-  const [email, setEmail]     = useState('')
-  const [password, setPassword] = useState('')
   const [showPwd, setShowPwd] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+  const [state, formAction, isPending] = useActionState(loginAdmin, null)
 
-  // Mostrar error si viene del layout (usuario autenticado pero no admin)
-  useEffect(() => {
-    if (searchParams.get('error') === 'no_permission') {
-      setError('No tienes permisos de administrador.')
-    }
-  }, [searchParams])
-
-  // Si ya hay sesión activa y es admin, redirigir
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data } = await supabase
-        .from('admin_users')
-        .select('email')
-        .eq('email', user.email!)
-        .single()
-      if (data) router.replace('/admin')
-    })
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    // 1. Autenticar con Supabase
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-
-    if (authError) {
-      setError('Email o contraseña incorrectos.')
-      setLoading(false)
-      return
-    }
-
-    // 2. Verificar que el email esté en admin_users
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('email')
-      .eq('email', email)
-      .single()
-
-    if (!adminUser) {
-      // Autenticado pero no es admin — cerrar sesión
-      await supabase.auth.signOut()
-      setError('No tienes permisos de administrador.')
-      setLoading(false)
-      return
-    }
-
-    // 3. Acceso concedido
-    router.push('/admin')
-    router.refresh()
-  }
+  const errorMsg =
+    searchParams.get('error') === 'no_permission'
+      ? 'No tienes permisos de administrador.'
+      : state?.error ?? ''
 
   return (
     <div className="min-h-screen bg-[#111410] flex items-center justify-center px-4">
@@ -91,22 +36,21 @@ export default function AdminLoginPage() {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
           <h1 className="text-white font-bold text-lg mb-6">Iniciar sesión</h1>
 
-          {error && (
+          {errorMsg && (
             <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-5">
               <ShieldAlert className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-              <p className="text-red-400 text-sm">{error}</p>
+              <p className="text-red-400 text-sm">{errorMsg}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form action={formAction} className="space-y-4">
             <div>
               <label className="block text-white/60 text-xs font-semibold uppercase tracking-wide mb-1.5">
                 Email
               </label>
               <input
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                name="email"
                 required
                 autoComplete="email"
                 placeholder="admin@jerseystand.com"
@@ -121,8 +65,7 @@ export default function AdminLoginPage() {
               <div className="relative">
                 <input
                   type={showPwd ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  name="password"
                   required
                   autoComplete="current-password"
                   placeholder="••••••••"
@@ -141,10 +84,10 @@ export default function AdminLoginPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isPending}
               className="w-full bg-[#c9a227] hover:bg-[#e8bc35] disabled:opacity-60 text-[#111410] font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
             >
-              {loading ? (
+              {isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Verificando...

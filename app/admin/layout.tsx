@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { LayoutDashboard, Package, ShoppingBag, Tag, Mail, TrendingDown, LogOut } from 'lucide-react'
 
@@ -9,14 +9,15 @@ async function checkAdmin() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/admin/login')
 
-  const { data: adminUser } = await supabase
+  // Use service role to bypass circular RLS on admin_users
+  const adminDb = createAdminClient()
+  const { data: adminUser } = await adminDb
     .from('admin_users')
     .select('email')
-    .eq('email', user.email!)
+    .eq('email', user.email!.toLowerCase())
     .single()
 
   if (!adminUser) {
-    // Sesión válida pero no es admin — cerrar sesión y mostrar error
     await supabase.auth.signOut()
     redirect('/admin/login?error=no_permission')
   }

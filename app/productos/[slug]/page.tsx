@@ -7,18 +7,16 @@ import { ShoppingCart, Shield, Truck, RefreshCw, ChevronLeft, ChevronRight } fro
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/store/cartStore'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
 import { PageLoading } from '@/components/ui/Loading'
-import { formatPrice, getStockLabel } from '@/lib/utils'
-import type { Product, ProductVariant, ProductSize, ProductType } from '@/types'
-import { SIZES, PRODUCT_TYPES } from '@/types'
+import { formatPrice } from '@/lib/utils'
+import type { Product, ProductVariant, ProductSize } from '@/types'
+import { SIZES } from '@/types'
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>()
-  const [product, setProduct] = useState<Product | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [product, setProduct]         = useState<Product | null>(null)
+  const [loading, setLoading]         = useState(true)
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null)
-  const [selectedType, setSelectedType] = useState<ProductType | null>('local')
   const [selectedImage, setSelectedImage] = useState(0)
   const [addedToCart, setAddedToCart] = useState(false)
   const { addItem } = useCartStore()
@@ -26,12 +24,13 @@ export default function ProductPage() {
   useEffect(() => {
     async function load() {
       const supabase = createClient()
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('products')
         .select('*, variants:product_variants(*)')
         .eq('slug', slug)
         .eq('active', true)
         .single()
+      if (error) console.error('[producto] fetch error:', error.message)
       setProduct(data as Product)
       setLoading(false)
     }
@@ -42,71 +41,95 @@ export default function ProductPage() {
   if (!product) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 text-center">
+        <p className="text-5xl mb-4">😕</p>
         <p className="font-display text-4xl text-gray-400">PRODUCTO NO ENCONTRADO</p>
       </div>
     )
   }
 
-  // Filtrar variantes disponibles
-  const availableVariants = product.variants || []
+  const variants      = product.variants || []
+  const hasDiscount   = Boolean(product.compare_price && product.compare_price > product.price)
+  const discountPct   = hasDiscount
+    ? Math.round((1 - product.price / product.compare_price!) * 100)
+    : 0
 
-  // Tipos disponibles
-  const availableTypes = [...new Set(availableVariants.map((v) => v.type))] as ProductType[]
+  // Tallas que tienen al menos una variante
+  const availableSizes = SIZES.filter((s) => variants.some((v) => v.size === s))
 
-  // Tallas disponibles para el tipo seleccionado
-  const availableSizes = selectedType
-    ? availableVariants.filter((v) => v.type === selectedType).map((v) => v.size)
-    : availableVariants.map((v) => v.size)
+  // Stock de la talla seleccionada (primera variante que coincida)
+  const selectedVariant: ProductVariant | undefined = selectedSize
+    ? variants.find((v) => v.size === selectedSize)
+    : undefined
 
-  // Variante seleccionada
-  const selectedVariant: ProductVariant | undefined = availableVariants.find(
-    (v) => v.size === selectedSize && v.type === selectedType
-  )
-
-  const stockLabel = selectedVariant ? getStockLabel(selectedVariant.stock) : null
-  const inStock = !selectedVariant || selectedVariant.stock > 0
+  const canAdd = Boolean(selectedVariant && selectedVariant.stock > 0)
 
   const handleAddToCart = () => {
-    if (!selectedVariant || !inStock) return
+    if (!selectedVariant || !canAdd) return
     addItem(product, selectedVariant)
     setAddedToCart(true)
     setTimeout(() => setAddedToCart(false), 2000)
   }
 
+  const prevImg = () => setSelectedImage((i) => (i - 1 + product.images.length) % product.images.length)
+  const nextImg = () => setSelectedImage((i) => (i + 1) % product.images.length)
+
+  const hasImages = product.images.length > 0
+
+  // Campos de metadata del producto (solo mostrar si existen)
+  const meta: { label: string; value: string | null | undefined }[] = [
+    { label: 'Marca',     value: product.marca },
+    { label: 'Equipo',    value: product.team },
+    { label: 'Liga',      value: product.liga },
+    { label: 'Año',       value: product.anio },
+    { label: 'Temporada', value: product.temporada },
+    { label: 'Género',    value: product.genero },
+  ]
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        {/* Galería */}
-        <div className="flex flex-col gap-4">
+
+        {/* ── Galería ── */}
+        <div className="flex flex-col gap-3">
           {/* Imagen principal */}
           <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100">
-            <Image
-              src={product.images[selectedImage] || '/placeholder-jersey.jpg'}
-              alt={product.name}
-              fill
-              className="object-cover"
-              priority
-            />
-
-            {product.images.length > 1 && (
+            {hasImages ? (
               <>
-                <button
-                  onClick={() =>
-                    setSelectedImage((i) => (i - 1 + product.images.length) % product.images.length)
-                  }
-                  className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-2 hover:bg-white shadow"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() =>
-                    setSelectedImage((i) => (i + 1) % product.images.length)
-                  }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-2 hover:bg-white shadow"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
+                <Image
+                  src={product.images[selectedImage]}
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                  priority
+                />
+                {product.images.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevImg}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 shadow transition-colors"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={nextImg}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 shadow transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
               </>
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1a5c2e]">
+                <span className="text-8xl">👕</span>
+                <span className="text-white/60 text-sm mt-3">Sin fotografía</span>
+              </div>
+            )}
+
+            {hasDiscount && (
+              <span className="absolute top-3 left-3 bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-md shadow">
+                OFERTA -{discountPct}%
+              </span>
             )}
           </div>
 
@@ -118,7 +141,7 @@ export default function ProductPage() {
                   key={i}
                   onClick={() => setSelectedImage(i)}
                   className={`relative w-16 h-16 rounded-lg overflow-hidden shrink-0 border-2 transition-all ${
-                    i === selectedImage ? 'border-[#1a5c2e]' : 'border-gray-200'
+                    i === selectedImage ? 'border-[#1a5c2e]' : 'border-gray-200 hover:border-gray-400'
                   }`}
                 >
                   <Image src={img} alt={`${product.name} ${i + 1}`} fill className="object-cover" />
@@ -128,162 +151,131 @@ export default function ProductPage() {
           )}
         </div>
 
-        {/* Info del producto */}
+        {/* ── Info ── */}
         <div className="flex flex-col gap-5">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <span>Inicio</span>
-            <span>/</span>
-            <span>Productos</span>
-            <span>/</span>
-            <span className="text-[#111410]">{product.team}</span>
+
+          {/* 1. Nombre */}
+          <h1 className="font-display text-3xl sm:text-4xl text-[#111410] leading-tight">
+            {product.name}
+          </h1>
+
+          {/* 2–7. Metadata */}
+          <div className="flex flex-col gap-1.5">
+            {meta.map(({ label, value }) =>
+              value ? (
+                <div key={label} className="flex items-center gap-2 text-sm">
+                  <span className="w-20 text-gray-400 shrink-0">{label}</span>
+                  <span className="font-semibold text-[#111410]">{value}</span>
+                </div>
+              ) : null
+            )}
           </div>
 
-          {/* Header */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="default">{product.team}</Badge>
-              {product.featured && <Badge variant="gold">NUEVO</Badge>}
-            </div>
-            <h1 className="font-product font-bold text-2xl sm:text-3xl text-[#111410] leading-tight">
-              {product.name}
-            </h1>
-          </div>
-
-          {/* Precio */}
+          {/* 8–9. Precios */}
           <div className="flex items-baseline gap-3 flex-wrap">
-            <span className="font-display text-4xl text-[#1a5c2e]">
+            <span className="font-display text-4xl text-[#1a5c2e] leading-none">
               {formatPrice(product.price)}
             </span>
-            {product.compare_price && product.compare_price > product.price && (
-              <>
-                <span className="text-gray-400 text-xl line-through">
-                  {formatPrice(product.compare_price)}
-                </span>
-                <span className="bg-red-500 text-white text-sm font-bold px-2 py-1 rounded">
-                  -{Math.round((1 - product.price / product.compare_price) * 100)}%
-                </span>
-              </>
+            {hasDiscount && (
+              <span className="text-gray-400 text-xl line-through leading-none">
+                {formatPrice(product.compare_price!)}
+              </span>
             )}
           </div>
 
-          {/* Selector de tipo — solo visible si hay más de un tipo */}
-          {availableTypes.length > 1 && (
-            <div>
-              <p className="font-semibold text-sm text-[#111410] mb-2">
-                Tipo{selectedType && <span className="text-[#1a5c2e] font-normal ml-2">{selectedType}</span>}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {PRODUCT_TYPES.filter((t) => availableTypes.includes(t.value)).map((type) => (
-                  <button
-                    key={type.value}
-                    onClick={() => {
-                      setSelectedType(type.value)
-                      setSelectedSize(null)
-                    }}
-                    className={`px-4 py-2 rounded-lg border-2 text-sm font-semibold transition-all ${
-                      selectedType === type.value
-                        ? 'border-[#1a5c2e] bg-[#1a5c2e] text-white'
-                        : 'border-gray-200 hover:border-[#1a5c2e]'
-                    }`}
-                  >
-                    {type.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Selector de talla */}
+          {/* 10. Selector de talla con stock real */}
           <div>
             <p className="font-semibold text-sm text-[#111410] mb-2">
-              Talla{selectedSize && <span className="text-[#1a5c2e] font-normal ml-2">{selectedSize}</span>}
+              Talla
+              {selectedSize && (
+                <span className="text-[#1a5c2e] font-normal ml-2">{selectedSize}</span>
+              )}
             </p>
-            <div className="flex flex-wrap gap-2">
-              {SIZES.map((size) => {
-                const variant = availableVariants.find(
-                  (v) => v.size === size && (!selectedType || v.type === selectedType)
-                )
-                const hasStock = variant && variant.stock > 0
-                const isAvailable = availableSizes.includes(size)
 
-                return (
-                  <button
-                    key={size}
-                    onClick={() => isAvailable && hasStock && setSelectedSize(size)}
-                    disabled={!isAvailable || !hasStock}
-                    className={`w-12 h-12 rounded-lg border-2 text-sm font-bold transition-all relative ${
-                      selectedSize === size
-                        ? 'border-[#1a5c2e] bg-[#1a5c2e] text-white'
-                        : isAvailable && hasStock
-                        ? 'border-gray-200 hover:border-[#1a5c2e]'
-                        : 'border-gray-100 text-gray-300 cursor-not-allowed'
-                    }`}
-                  >
-                    {size}
-                    {!hasStock && isAvailable && (
-                      <span className="absolute inset-0 flex items-center justify-center">
-                        <span className="block w-full h-px bg-gray-300 rotate-45 absolute" />
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+            {availableSizes.length === 0 ? (
+              <p className="text-sm text-gray-400">Sin tallas disponibles</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {availableSizes.map((size) => {
+                  const variant = variants.find((v) => v.size === size)
+                  const stock   = variant?.stock ?? 0
+                  const active  = selectedSize === size
 
-            {stockLabel && selectedVariant && selectedVariant.stock > 0 && (
-              <p className="text-orange-500 font-semibold text-sm mt-2">⚠️ {stockLabel}</p>
+                  return (
+                    <div key={size} className="flex flex-col items-center gap-1">
+                      <button
+                        onClick={() => stock > 0 && setSelectedSize(size)}
+                        disabled={stock === 0}
+                        className={`relative w-14 h-14 rounded-xl border-2 text-sm font-bold transition-all ${
+                          active
+                            ? 'border-[#1a5c2e] bg-[#1a5c2e] text-white'
+                            : stock > 0
+                            ? 'border-gray-200 hover:border-[#1a5c2e] text-[#111410]'
+                            : 'border-gray-100 text-gray-300 cursor-not-allowed'
+                        }`}
+                      >
+                        {size}
+                        {stock === 0 && (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="block w-full h-px bg-gray-300 rotate-45 absolute" />
+                          </span>
+                        )}
+                      </button>
+                      {stock > 0 && stock <= 3 && (
+                        <span className="text-[10px] text-orange-500 font-semibold leading-none">
+                          ¡Últimas {stock}!
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </div>
 
-          {/* Botón agregar al carrito */}
+          {/* 11. Botón carrito */}
           <Button
             variant={addedToCart ? 'secondary' : 'primary'}
             size="lg"
             onClick={handleAddToCart}
-            disabled={!selectedSize || (availableTypes.length > 1 && !selectedType) || !inStock}
-            className="font-display text-lg tracking-wider"
+            disabled={!selectedSize || !canAdd}
+            className="font-display text-lg tracking-wider bg-[#c9a227] hover:bg-[#e8bc35] border-[#c9a227] text-[#111410]"
           >
             <ShoppingCart className="w-5 h-5" />
-            {availableTypes.length > 1 && !selectedType
-              ? 'SELECCIONA UN TIPO'
-              : !selectedSize
+            {!selectedSize
               ? 'SELECCIONA UNA TALLA'
-              : !inStock
+              : !canAdd
               ? 'AGOTADO'
               : addedToCart
               ? '¡AGREGADO AL CARRITO!'
               : 'AGREGAR AL CARRITO'}
           </Button>
 
-          {/* Descripción */}
+          {/* 12. Descripción */}
           {product.description && (
             <div>
               <h2 className="font-semibold text-[#111410] mb-2">Descripción</h2>
-              <p className="text-gray-600 leading-relaxed text-sm">{product.description}</p>
+              <p className="text-gray-600 leading-relaxed text-sm whitespace-pre-line">
+                {product.description}
+              </p>
             </div>
           )}
 
           {/* Garantías */}
-          <div className="border border-gray-100 rounded-xl p-4 flex flex-col gap-3">
-            <div className="flex items-center gap-3 text-sm">
-              <Shield className="w-5 h-5 text-[#1a5c2e] shrink-0" />
-              <span className="text-gray-600">
-                <strong className="text-[#111410]">Producto auténtico</strong> — Garantizado 100%
-              </span>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <Truck className="w-5 h-5 text-[#1a5c2e] shrink-0" />
-              <span className="text-gray-600">
-                <strong className="text-[#111410]">Envío gratis</strong> en pedidos mayores a $1,500 MXN
-              </span>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <RefreshCw className="w-5 h-5 text-[#1a5c2e] shrink-0" />
-              <span className="text-gray-600">
-                <strong className="text-[#111410]">Cambios y devoluciones</strong> sin complicaciones
-              </span>
-            </div>
+          <div className="border border-gray-100 rounded-xl p-4 flex flex-col gap-3 mt-auto">
+            {[
+              { Icon: Shield,    text: '<strong>Producto auténtico</strong> — Garantizado 100%' },
+              { Icon: Truck,     text: '<strong>Envío gratis</strong> en pedidos mayores a $1,500 MXN' },
+              { Icon: RefreshCw, text: '<strong>Cambios y devoluciones</strong> sin complicaciones' },
+            ].map(({ Icon, text }) => (
+              <div key={text} className="flex items-center gap-3 text-sm">
+                <Icon className="w-5 h-5 text-[#1a5c2e] shrink-0" />
+                <span
+                  className="text-gray-600"
+                  dangerouslySetInnerHTML={{ __html: text }}
+                />
+              </div>
+            ))}
           </div>
         </div>
       </div>

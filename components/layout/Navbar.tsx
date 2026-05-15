@@ -80,7 +80,7 @@ export function Navbar() {
           <div className="flex items-center gap-2 shrink-0">
             {/* CTA — visible desde lg, nunca corta en dos líneas */}
             <Link
-              href="/vender-jersey"
+              href="/vendo-mi-jersey"
               className="hidden lg:flex items-center whitespace-nowrap bg-[#c9a227] text-[#111410] text-sm font-bold uppercase px-4 py-2 rounded-lg hover:bg-[#e8bc35] transition-colors"
             >
               Vendo mi jersey
@@ -162,7 +162,7 @@ export function Navbar() {
               ))}
               <li className="px-6 pt-3 border-t border-white/10 mt-2">
                 <Link
-                  href="/vender-jersey"
+                  href="/vendo-mi-jersey"
                   onClick={() => setMenuOpen(false)}
                   className="block py-2 text-[#c9a227] hover:text-[#e8bc35] font-bold text-sm"
                 >

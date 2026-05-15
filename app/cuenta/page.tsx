@@ -37,7 +37,7 @@ export default function CuentaPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data } = await supabase
-          .from('users_profiles')
+          .from('user_profiles')
           .select('*')
           .eq('id', user.id)
           .single()
@@ -59,7 +59,7 @@ export default function CuentaPage() {
   const onSave = async (data: ProfileForm) => {
     if (!profile) return
     setSaving(true)
-    await supabase.from('users_profiles').update(data).eq('id', profile.id)
+    await supabase.from('user_profiles').update(data).eq('id', profile.id)
     setSaving(false)
     setSaveSuccess(true)
     setTimeout(() => setSaveSuccess(false), 2000)

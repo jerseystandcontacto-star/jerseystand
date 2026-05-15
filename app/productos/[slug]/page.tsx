@@ -18,7 +18,7 @@ export default function ProductPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null)
-  const [selectedType, setSelectedType] = useState<ProductType | null>(null)
+  const [selectedType, setSelectedType] = useState<ProductType | null>('local')
   const [selectedImage, setSelectedImage] = useState(0)
   const [addedToCart, setAddedToCart] = useState(false)
   const { addItem } = useCartStore()
@@ -167,30 +167,32 @@ export default function ProductPage() {
             )}
           </div>
 
-          {/* Selector de tipo */}
-          <div>
-            <p className="font-semibold text-sm text-[#111410] mb-2">
-              Tipo{selectedType && <span className="text-[#1a5c2e] font-normal ml-2">{selectedType}</span>}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {PRODUCT_TYPES.filter((t) => availableTypes.includes(t.value)).map((type) => (
-                <button
-                  key={type.value}
-                  onClick={() => {
-                    setSelectedType(type.value)
-                    setSelectedSize(null)
-                  }}
-                  className={`px-4 py-2 rounded-lg border-2 text-sm font-semibold transition-all ${
-                    selectedType === type.value
-                      ? 'border-[#1a5c2e] bg-[#1a5c2e] text-white'
-                      : 'border-gray-200 hover:border-[#1a5c2e]'
-                  }`}
-                >
-                  {type.label}
-                </button>
-              ))}
+          {/* Selector de tipo — solo visible si hay más de un tipo */}
+          {availableTypes.length > 1 && (
+            <div>
+              <p className="font-semibold text-sm text-[#111410] mb-2">
+                Tipo{selectedType && <span className="text-[#1a5c2e] font-normal ml-2">{selectedType}</span>}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {PRODUCT_TYPES.filter((t) => availableTypes.includes(t.value)).map((type) => (
+                  <button
+                    key={type.value}
+                    onClick={() => {
+                      setSelectedType(type.value)
+                      setSelectedSize(null)
+                    }}
+                    className={`px-4 py-2 rounded-lg border-2 text-sm font-semibold transition-all ${
+                      selectedType === type.value
+                        ? 'border-[#1a5c2e] bg-[#1a5c2e] text-white'
+                        : 'border-gray-200 hover:border-[#1a5c2e]'
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Selector de talla */}
           <div>
@@ -239,11 +241,11 @@ export default function ProductPage() {
             variant={addedToCart ? 'secondary' : 'primary'}
             size="lg"
             onClick={handleAddToCart}
-            disabled={!selectedSize || !selectedType || !inStock}
+            disabled={!selectedSize || (availableTypes.length > 1 && !selectedType) || !inStock}
             className="font-display text-lg tracking-wider"
           >
             <ShoppingCart className="w-5 h-5" />
-            {!selectedType
+            {availableTypes.length > 1 && !selectedType
               ? 'SELECCIONA UN TIPO'
               : !selectedSize
               ? 'SELECCIONA UNA TALLA'

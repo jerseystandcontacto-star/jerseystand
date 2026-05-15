@@ -108,24 +108,37 @@ export async function POST(req: NextRequest) {
 
     await supabase.from('order_items').insert(orderItems)
 
-    // Reducir stock
+    // Reducir stock con valor fresco de BD (evita vender en negativo)
     for (const item of items as CartItem[]) {
-      const { error: rpcError } = await supabase.rpc('decrement_stock', {
-        variant_id: item.variant.id,
-        amount: item.quantity,
-      })
-      if (rpcError) {
-        // RPC no existe — actualizar stock directamente
-        await supabase
+      const { data: fresh } = await supabase
+        .from('product_variants')
+        .select('stock')
+        .eq('id', item.variant.id)
+        .single()
+
+      if (fresh) {
+        const newStock = Math.max(0, fresh.stock - item.quantity)
+        const { error: stockErr } = await supabase
           .from('product_variants')
-          .update({ stock: Math.max(0, item.variant.stock - item.quantity) })
+          .update({ stock: newStock })
           .eq('id', item.variant.id)
+        if (stockErr) console.error('[checkout] error actualizando stock:', stockErr.message)
       }
     }
 
-    // Incrementar uso de cupón (error ignorado si el RPC no existe)
+    // Incrementar uso de cupón
     if (coupon_id) {
-      await supabase.rpc('increment', { table: 'coupons', field: 'used_count', id: coupon_id })
+      const { data: couponRow } = await supabase
+        .from('coupons')
+        .select('used_count')
+        .eq('id', coupon_id)
+        .single()
+      if (couponRow) {
+        await supabase
+          .from('coupons')
+          .update({ used_count: couponRow.used_count + 1 })
+          .eq('id', coupon_id)
+      }
     }
 
     // Generar link de pago EcartPay

@@ -1,7 +1,7 @@
+export const dynamic = 'force-dynamic'
+
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-
-export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { ProductCard } from '@/components/products/ProductCard'
 import { ProductFilters } from '@/components/products/ProductFilters'
@@ -30,26 +30,32 @@ interface PageProps {
 }
 
 async function getProducts(params: Awaited<PageProps['searchParams']>): Promise<Product[]> {
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
 
-  let query = supabase
-    .from('products')
-    .select('*, variants:product_variants(*)')
-    .eq('active', true)
+    let query = supabase
+      .from('products')
+      .select('*, variants:product_variants(*)')
+      .eq('active', true)
 
-  if (params.categoria) query = query.eq('category', params.categoria)
-  if (params.equipo) query = query.ilike('team', `%${params.equipo}%`)
-  if (params.buscar) query = query.ilike('name', `%${params.buscar}%`)
-  if (params.precioMin) query = query.gte('price', Number(params.precioMin))
-  if (params.precioMax) query = query.lte('price', Number(params.precioMax))
+    if (params.categoria) query = query.eq('category', params.categoria)
+    if (params.equipo)    query = query.ilike('team', `%${params.equipo}%`)
+    if (params.buscar)    query = query.ilike('name', `%${params.buscar}%`)
+    if (params.precioMin) query = query.gte('price', Number(params.precioMin))
+    if (params.precioMax) query = query.lte('price', Number(params.precioMax))
 
-  if (params.orden === 'precio_asc') query = query.order('price', { ascending: true })
-  else if (params.orden === 'precio_desc') query = query.order('price', { ascending: false })
-  else if (params.orden === 'destacados') query = query.order('featured', { ascending: false })
-  else query = query.order('created_at', { ascending: false })
+    if (params.orden === 'precio_asc')  query = query.order('price', { ascending: true })
+    else if (params.orden === 'precio_desc') query = query.order('price', { ascending: false })
+    else if (params.orden === 'destacados')  query = query.order('featured', { ascending: false })
+    else query = query.order('created_at', { ascending: false })
 
-  const { data } = await query.limit(48)
-  return (data as Product[]) || []
+    const { data, error } = await query.limit(48)
+    if (error) console.error('[catalogo] getProducts error:', error.message, error.details)
+    return (data as Product[]) || []
+  } catch (e) {
+    console.error('[catalogo] getProducts exception:', e)
+    return []
+  }
 }
 
 export default async function ProductosPage({ searchParams }: PageProps) {

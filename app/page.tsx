@@ -16,18 +16,19 @@ export const metadata: Metadata = {
     'Jerseys y gear deportivo 100% auténtico. Liga MX, Selección Mexicana, Europa y colecciones Retro. Envío a todo México.',
 }
 
-async function getFeaturedProducts(): Promise<Product[]> {
+async function getRecentProducts(): Promise<Product[]> {
   try {
     const supabase = await createClient()
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('products')
       .select('*, variants:product_variants(*)')
       .eq('active', true)
-      .eq('featured', true)
       .order('created_at', { ascending: false })
       .limit(8)
+    if (error) console.error('[home] getRecentProducts:', error.message)
     return (data as Product[]) || []
-  } catch {
+  } catch (e) {
+    console.error('[home] getRecentProducts exception:', e)
     return []
   }
 }
@@ -35,21 +36,23 @@ async function getFeaturedProducts(): Promise<Product[]> {
 async function getRetroProducts(): Promise<Product[]> {
   try {
     const supabase = await createClient()
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('products')
       .select('*, variants:product_variants(*)')
       .eq('active', true)
       .eq('category', 'retro-vintage')
       .order('created_at', { ascending: false })
       .limit(4)
+    if (error) console.error('[home] getRetroProducts:', error.message)
     return (data as Product[]) || []
-  } catch {
+  } catch (e) {
+    console.error('[home] getRetroProducts exception:', e)
     return []
   }
 }
 
 export default async function HomePage() {
-  const [featured, retro] = await Promise.all([getFeaturedProducts(), getRetroProducts()])
+  const [featured, retro] = await Promise.all([getRecentProducts(), getRetroProducts()])
 
   return (
     <>

@@ -206,6 +206,7 @@ function ProductFormModal({
   )
   const [images, setImages]   = useState<string[]>(product?.images || [])
   const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
 
   const set = (field: string, value: unknown) =>
     setFormData((f) => ({ ...f, [field]: value }))
@@ -218,31 +219,43 @@ function ProductFormModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError('')
 
-    const payload = {
-      ...formData,
-      price:         parseFloat(formData.price),
-      compare_price: formData.compare_price ? parseFloat(formData.compare_price) : null,
-      category:      ligaToCategory(formData.liga),
-      images,
-      variants: variants.map((v) => ({
-        ...v,
-        type:   'local',   // kept in DB schema but not shown in UI
-        season: formData.anio || '',
-      })),
+    try {
+      const payload = {
+        ...formData,
+        price:         parseFloat(formData.price),
+        compare_price: formData.compare_price ? parseFloat(formData.compare_price) : null,
+        category:      ligaToCategory(formData.liga),
+        images,
+        variants: variants.map((v) => ({
+          size:  v.size  || 'M',
+          stock: Number(v.stock) || 0,
+        })),
+      }
+
+      const url    = product ? `/api/admin/products/${product.id}` : '/api/admin/products'
+      const method = product ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || `Error ${res.status}: no se pudo guardar el producto`)
+        return
+      }
+
+      onSave()
+    } catch (err) {
+      console.error('[handleSubmit] error de red:', err)
+      setError('Error de red: no se pudo conectar con el servidor. Revisa tu conexión.')
+    } finally {
+      setLoading(false)
     }
-
-    const url    = product ? `/api/admin/products/${product.id}` : '/api/admin/products'
-    const method = product ? 'PUT' : 'POST'
-
-    await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-
-    setLoading(false)
-    onSave()
   }
 
   return (
@@ -259,6 +272,12 @@ function ProductFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm font-medium">
+              {error}
+            </div>
+          )}
+
           {/* Nombre */}
           <Input
             label="Nombre del producto"

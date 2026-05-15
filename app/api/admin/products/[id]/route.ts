@@ -20,9 +20,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // Actualizar variantes: borrar las viejas e insertar las nuevas
   if (variants?.length) {
     await supabase.from('product_variants').delete().eq('product_id', id)
-    await supabase.from('product_variants').insert(
-      variants.map((v: any) => ({ ...v, product_id: id, id: v.id || undefined }))
+
+    const { error: varError } = await supabase.from('product_variants').insert(
+      variants.map((v: any) => ({
+        product_id: id,
+        size:       v.size  || 'M',
+        stock:      Number(v.stock) || 0,
+      }))
     )
+
+    if (varError) {
+      console.error('[PUT /api/admin/products] error variantes:', varError.code, varError.message)
+    }
   }
 
   return NextResponse.json({ message: 'Producto actualizado' })

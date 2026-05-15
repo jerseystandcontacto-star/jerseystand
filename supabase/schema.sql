@@ -50,6 +50,12 @@ create table public.products (
   tags text[] default '{}',
   active boolean not null default true,
   featured boolean not null default false,
+  -- Campos de catálogo (añadidos en migración 001)
+  marca     text,
+  anio      text,
+  liga      text,
+  genero    text,
+  temporada text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -67,8 +73,8 @@ create table public.product_variants (
   id uuid default uuid_generate_v4() primary key,
   product_id uuid references public.products(id) on delete cascade not null,
   size text not null check (size in ('XS', 'S', 'M', 'L', 'XL', 'XXL')),
-  type text not null check (type in ('local', 'visitante', 'tercero', 'portero')),
-  season text not null,
+  type text not null default 'local' check (type in ('local', 'visitante', 'tercero', 'portero')),
+  season text not null default '',
   stock integer not null default 0 check (stock >= 0),
   sku text unique,
   created_at timestamptz not null default now()

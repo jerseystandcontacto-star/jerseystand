@@ -151,14 +151,19 @@ export default function ProductPage() {
           </div>
 
           {/* Precio */}
-          <div className="flex items-baseline gap-3">
+          <div className="flex items-baseline gap-3 flex-wrap">
             <span className="font-display text-4xl text-[#1a5c2e]">
               {formatPrice(product.price)}
             </span>
-            {product.compare_price && (
-              <span className="text-gray-400 text-xl line-through">
-                {formatPrice(product.compare_price)}
-              </span>
+            {product.compare_price && product.compare_price > product.price && (
+              <>
+                <span className="text-gray-400 text-xl line-through">
+                  {formatPrice(product.compare_price)}
+                </span>
+                <span className="bg-red-500 text-white text-sm font-bold px-2 py-1 rounded">
+                  -{Math.round((1 - product.price / product.compare_price) * 100)}%
+                </span>
+              </>
             )}
           </div>
 

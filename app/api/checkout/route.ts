@@ -110,22 +110,22 @@ export async function POST(req: NextRequest) {
 
     // Reducir stock
     for (const item of items as CartItem[]) {
-      await supabase.rpc('decrement_stock', {
+      const { error: rpcError } = await supabase.rpc('decrement_stock', {
         variant_id: item.variant.id,
         amount: item.quantity,
-      }).catch(() => {
-        // Si no existe la función RPC, actualizar manualmente
-        supabase
-          .from('product_variants')
-          .update({ stock: supabase.rpc('greatest', { a: 0, b: item.variant.stock - item.quantity }) })
-          .eq('id', item.variant.id)
       })
+      if (rpcError) {
+        // RPC no existe — actualizar stock directamente
+        await supabase
+          .from('product_variants')
+          .update({ stock: Math.max(0, item.variant.stock - item.quantity) })
+          .eq('id', item.variant.id)
+      }
     }
 
-    // Incrementar uso de cupón
+    // Incrementar uso de cupón (error ignorado si el RPC no existe)
     if (coupon_id) {
       await supabase.rpc('increment', { table: 'coupons', field: 'used_count', id: coupon_id })
-        .catch(() => null)
     }
 
     // Generar link de pago EcartPay

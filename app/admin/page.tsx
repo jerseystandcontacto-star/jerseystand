@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 import { ShoppingBag, DollarSign, Package, AlertTriangle, TrendingUp } from 'lucide-react'
@@ -7,7 +7,7 @@ import { OrderStatusBadge } from '@/components/ui/Badge'
 import Link from 'next/link'
 
 async function getDashboardData() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 

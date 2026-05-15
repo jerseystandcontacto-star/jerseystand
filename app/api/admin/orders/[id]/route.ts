@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { createAdminClient, requireAdmin } from '@/lib/supabase/server'
 import { sendShippingNotification } from '@/lib/resend'
-
-async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data: admin } = await supabase.from('admin_users').select('email').eq('email', user.email!).single()
-  return admin ? user : null
-}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin()

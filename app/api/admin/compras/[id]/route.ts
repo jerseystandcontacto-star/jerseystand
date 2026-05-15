@@ -1,19 +1,11 @@
 import { NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
-
-async function verifyAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data: admin } = await supabase.from('admin_users').select('email').eq('email', user.email!).single()
-  return admin ? user : null
-}
+import { createAdminClient, requireAdmin } from '@/lib/supabase/server'
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await verifyAdmin()
+  const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { id } = await params

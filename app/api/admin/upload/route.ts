@@ -1,28 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/supabase/server'
 import { uploadToStorage } from '@/lib/storage'
 import { randomBytes } from 'crypto'
 import path from 'path'
 
-const MAX_SIZE    = 5 * 1024 * 1024
-const ALLOWED     = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']
-
-async function verifyAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: admin } = await supabase
-    .from('admin_users')
-    .select('email')
-    .eq('email', user.email!)
-    .single()
-
-  return admin ? user : null
-}
+const MAX_SIZE = 5 * 1024 * 1024
+const ALLOWED  = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']
 
 export async function POST(req: NextRequest) {
-  const admin = await verifyAdmin()
+  const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   try {

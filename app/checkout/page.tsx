@@ -96,6 +96,7 @@ export default function CheckoutPage() {
     setLoading(true)
 
     try {
+      // Paso 1: crear orden en Supabase
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,16 +114,28 @@ export default function CheckoutPage() {
       })
 
       const result = await res.json()
-
       if (!res.ok) throw new Error(result.error)
 
       clearCart()
 
-      if (result.payment_url) {
-        window.location.href = result.payment_url
-      } else {
+      if (sandboxMode) {
+        // Modo prueba: ir directo al tracking sin pago real
         router.push(`/rastrear?orden=${result.order_number}`)
+        return
       }
+
+      // Paso 2: crear pago en EcartPay
+      const payRes = await fetch('/api/checkout/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: result.order_id }),
+      })
+
+      const payResult = await payRes.json()
+      if (!payRes.ok) throw new Error(payResult.error)
+
+      // Paso 3: redirigir a la página de pago de EcartPay
+      window.location.href = payResult.pay_link
     } catch (err: any) {
       alert('Error al procesar el pedido: ' + err.message)
     } finally {

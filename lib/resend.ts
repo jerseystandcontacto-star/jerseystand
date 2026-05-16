@@ -89,7 +89,7 @@ export async function sendOrderConfirmation(order: Order) {
 
         <div style="background: #111410; padding: 20px; text-align: center; color: #666; font-size: 12px;">
           <p>Jersey Stand | Gear auténtico 🏆</p>
-          <p><a href="https://instagram.com/jerseystand" style="color: #c9a227;">@jerseystand</a></p>
+          <p><a href="https://www.instagram.com/jerseystandcontacto/" style="color: #c9a227;">@jerseystand</a></p>
         </div>
       </body>
       </html>
@@ -232,7 +232,7 @@ export async function sendQuoteConfirmation(quote: {
             <p style="margin: 0;"><strong>Tipo de producto:</strong> ${quote.product_type}</p>
             <p style="margin: 5px 0 0;"><strong>Cantidad:</strong> ${quote.quantity_range} piezas</p>
           </div>
-          <p>Si tienes dudas urgentes, escríbenos por Instagram: <a href="https://instagram.com/jerseystand" style="color: #1a5c2e;">@jerseystand</a></p>
+          <p>Si tienes dudas urgentes, escríbenos por Instagram: <a href="https://www.instagram.com/jerseystandcontacto/" style="color: #1a5c2e;">@jerseystand</a></p>
         </div>
         <div style="background: #111410; padding: 20px; text-align: center; color: #666; font-size: 12px;">
           <p>Jersey Stand | Gear auténtico 🏆</p>

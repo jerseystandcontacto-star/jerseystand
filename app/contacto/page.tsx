@@ -140,7 +140,7 @@ export default function ContactoPage() {
                 <div>
                   <p className="font-semibold text-sm">Instagram</p>
                   <a
-                    href="https://instagram.com/jerseystand"
+                    href="https://www.instagram.com/jerseystandcontacto/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#c9a227] text-sm hover:underline"

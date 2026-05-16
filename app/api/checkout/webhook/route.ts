@@ -18,9 +18,8 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get('x-pay-signature') || ''
 
   if (secret && signature) {
-    // EcartPay puede enviar timestamp/webhookId en el body o como headers
     const timestamp = body.timestamp
-      ?? body.webhookId   // a veces viene anidado diferente
+      ?? body.webhookId
       ?? req.headers.get('x-pay-timestamp')
       ?? ''
     const webhookId = body.webhookId
@@ -30,19 +29,16 @@ export async function POST(req: NextRequest) {
     const valid = verifyEcartPaySignature(timestamp, webhookId, body.data, secret, signature)
     if (!valid) {
       console.error('[webhook] Firma EcartPay inválida', { signature, timestamp, webhookId })
-      // Devolvemos 200 de todas formas para que EcartPay no reintente indefinidamente
       return ok()
     }
   } else if (secret && !signature) {
-    // Webhook sin firma cuando se espera → ignorar
     console.warn('[webhook] Recibido sin x-pay-signature')
   }
 
   // ── Procesar evento ──────────────────────────────────────────────────────
-  const event = body.event  || ''
-  const data  = body.data   || {}
+  const event = body.event || ''
+  const data  = body.data  || {}
 
-  // ID de la orden en EcartPay (puede venir en varios campos según el evento)
   const ecartpayOrderId =
     data.order_id ?? data.id ?? body.order_id ?? ''
 
@@ -53,7 +49,6 @@ export async function POST(req: NextRequest) {
     return ok()
   }
 
-  // Determinar nuevo status en nuestra BD
   const isPaid =
     event === 'transactions.paid' ||
     event === 'direct_debit.payment_success' ||
@@ -66,21 +61,36 @@ export async function POST(req: NextRequest) {
     data.status === 'failed' ||
     data.status === 'cancelled'
 
-  if (!isPaid && !isFailed) {
-    // Evento que no nos interesa (e.g. billing_information.updated)
-    return ok()
-  }
+  if (!isPaid && !isFailed) return ok()
 
   const newStatus = isPaid ? 'pagado' : 'cancelado'
 
   try {
     const supabase = createAdminClient()
-    const { error, data: updated } = await supabase
-      .from('orders')
-      .update({ status: newStatus })
-      .eq('payment_id', ecartpayOrderId)
-      .select('order_number')
-      .single()
+
+    // order_number puede venir como query param ?order=JS-XXXX
+    const orderNumber = new URL(req.url).searchParams.get('order')
+
+    let error: any
+    let updated: any
+
+    if (orderNumber) {
+      // Identificar la orden por nuestro order_number y guardar el ID de EcartPay
+      ;({ error, data: updated } = await supabase
+        .from('orders')
+        .update({ status: newStatus, payment_id: ecartpayOrderId })
+        .eq('order_number', orderNumber)
+        .select('order_number')
+        .single())
+    } else {
+      // Fallback: buscar por payment_id (órdenes creadas antes del SDK)
+      ;({ error, data: updated } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('payment_id', ecartpayOrderId)
+        .select('order_number')
+        .single())
+    }
 
     if (error) {
       console.error('[webhook] Error actualizando orden:', error.message)

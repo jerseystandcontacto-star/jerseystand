@@ -6,7 +6,21 @@
       "PowerShell(New-Item *)",
       "Bash(npx tsc *)",
       "Bash(npm run *)",
-      "PowerShell(head *)"
+      "PowerShell(head *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\gonza\\\\jerseystand\\\\app\\\\vendo-mi-jersey\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Host \"ok\")",
+      "Bash(node *)",
+      "Bash(npx next *)",
+      "WebFetch(domain:docs.ecart.com)",
+      "WebFetch(domain:app.ecart.com)",
+      "WebFetch(domain:ecart.com)",
+      "WebSearch",
+      "WebFetch(domain:ecartpay.com)",
+      "WebFetch(domain:docs.ecartpay.com)"
     ]
   }
 }

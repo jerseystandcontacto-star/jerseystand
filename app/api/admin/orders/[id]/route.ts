@@ -10,12 +10,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   const supabase = createAdminClient()
 
-  const updateData: any = {
-    updated_at: new Date().toISOString(),
-  }
-
+  const updateData: any = {}
   if (body.status) updateData.status = body.status
-  if (body.tracking_number) updateData.tracking_number = body.tracking_number
+  if (body.tracking_number !== undefined) updateData.tracking_number = body.tracking_number || null
 
   const { data: order, error } = await supabase
     .from('orders')

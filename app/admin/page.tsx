@@ -1,10 +1,25 @@
-import { createAdminClient } from '@/lib/supabase/server'
-
 export const dynamic = 'force-dynamic'
-import { ShoppingBag, DollarSign, Package, AlertTriangle, TrendingUp } from 'lucide-react'
+
+import { createAdminClient } from '@/lib/supabase/server'
+import { ShoppingBag, DollarSign, AlertTriangle, TrendingUp } from 'lucide-react'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { OrderStatusBadge } from '@/components/ui/Badge'
+import { SandboxToggle } from '@/components/admin/SandboxToggle'
 import Link from 'next/link'
+
+async function getSandboxMode(): Promise<boolean> {
+  try {
+    const supabase = createAdminClient()
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'modo_prueba')
+      .single()
+    return data?.value === 'true'
+  } catch {
+    return false
+  }
+}
 
 async function getDashboardData() {
   const supabase = createAdminClient()
@@ -52,8 +67,10 @@ async function getDashboardData() {
 }
 
 export default async function AdminDashboard() {
-  const { ordersToday, recentOrders, lowStockVariants, totalRevenue, revenueToday } =
-    await getDashboardData()
+  const [
+    { ordersToday, recentOrders, lowStockVariants, totalRevenue, revenueToday },
+    sandboxMode,
+  ] = await Promise.all([getDashboardData(), getSandboxMode()])
 
   const metrics = [
     { label: 'Órdenes hoy', value: ordersToday || 0, icon: ShoppingBag, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -64,11 +81,16 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="font-display text-4xl text-[#111410]">DASHBOARD</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          {new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
+        <div>
+          <h1 className="font-display text-4xl text-[#111410]">DASHBOARD</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            {new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+        </div>
+        <div className="sm:w-80 shrink-0">
+          <SandboxToggle initial={sandboxMode} />
+        </div>
       </div>
 
       {/* Métricas */}

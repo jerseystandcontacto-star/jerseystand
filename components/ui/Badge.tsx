@@ -39,6 +39,7 @@ export function OrderStatusBadge({ status }: { status: string }) {
     enviado: { label: 'Enviado', variant: 'info' },
     entregado: { label: 'Entregado', variant: 'success' },
     cancelado: { label: 'Cancelado', variant: 'error' },
+    prueba: { label: '🧪 Prueba', variant: 'gold' },
   }
 
   const cfg = config[status] || { label: status, variant: 'default' as const }

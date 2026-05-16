@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
       discount,
       total,
       coupon_code,
+      sandbox = false,
     } = body
 
     if (!items?.length) {
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
         customer_email: shipping_address.email,
         customer_name: shipping_address.full_name,
         customer_phone: shipping_address.phone,
-        status: 'pendiente',
+        status: sandbox ? 'prueba' : 'pendiente',
         subtotal,
         shipping_cost,
         discount,
@@ -141,47 +142,52 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Generar link de pago EcartPay
     let payment_url: string | null = null
-    const ecartpayKey = process.env.ECARTPAY_API_KEY
-    if (ecartpayKey) {
-      try {
-        const ecartRes = await fetch('https://api.ecartpay.com/v1/payment_links', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${ecartpayKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            amount: Math.round(total * 100),
-            currency: 'MXN',
-            description: `Orden Jersey Stand ${order_number}`,
-            metadata: { order_id: order.id, order_number },
-            success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/rastrear?orden=${order_number}`,
-            cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout`,
-          }),
-        })
 
-        if (ecartRes.ok) {
-          const ecartData = await ecartRes.json()
-          payment_url = ecartData.url || ecartData.payment_url || null
+    if (sandbox) {
+      // Modo prueba: no se llama a EcartPay, no se envían emails reales
+      console.log(`[checkout] Orden de PRUEBA creada: ${order_number}`)
+    } else {
+      // Generar link de pago EcartPay
+      const ecartpayKey = process.env.ECARTPAY_API_KEY
+      if (ecartpayKey) {
+        try {
+          const ecartRes = await fetch('https://api.ecartpay.com/v1/payment_links', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${ecartpayKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              amount: Math.round(total * 100),
+              currency: 'MXN',
+              description: `Orden Jersey Stand ${order_number}`,
+              metadata: { order_id: order.id, order_number },
+              success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/rastrear?orden=${order_number}`,
+              cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout`,
+            }),
+          })
 
-          // Guardar payment_id
-          if (ecartData.id) {
-            await supabase.from('orders').update({ payment_id: ecartData.id }).eq('id', order.id)
+          if (ecartRes.ok) {
+            const ecartData = await ecartRes.json()
+            payment_url = ecartData.url || ecartData.payment_url || null
+
+            if (ecartData.id) {
+              await supabase.from('orders').update({ payment_id: ecartData.id }).eq('id', order.id)
+            }
           }
+        } catch (err) {
+          console.error('Error EcartPay:', err)
         }
-      } catch (err) {
-        console.error('Error EcartPay:', err)
       }
-    }
 
-    // Enviar emails (sin bloquear la respuesta)
-    const orderWithItems = { ...order, items: orderItems }
-    Promise.all([
-      sendOrderConfirmation(orderWithItems as any).catch(console.error),
-      sendAdminOrderNotification(orderWithItems as any).catch(console.error),
-    ])
+      // Enviar emails solo en órdenes reales
+      const orderWithItems = { ...order, items: orderItems }
+      Promise.all([
+        sendOrderConfirmation(orderWithItems as any).catch(console.error),
+        sendAdminOrderNotification(orderWithItems as any).catch(console.error),
+      ])
+    }
 
     return NextResponse.json({
       order_id: order.id,

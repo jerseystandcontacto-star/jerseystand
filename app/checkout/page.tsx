@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -46,7 +46,15 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState('')
   const [couponLoading, setCouponLoading] = useState(false)
   const [couponApplied, setCouponApplied] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading]       = useState(false)
+  const [sandboxMode, setSandboxMode] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((s) => setSandboxMode(s.modo_prueba === 'true'))
+      .catch(() => {})
+  }, [])
 
   const subtotal = getSubtotal()
   const shippingCost = subtotal >= 1500 ? 0 : (shippingType === 'express' ? 349 : 149)
@@ -100,6 +108,7 @@ export default function CheckoutPage() {
           discount: couponDiscount,
           total,
           coupon_code: couponApplied,
+          sandbox: sandboxMode,
         }),
       })
 
@@ -107,13 +116,12 @@ export default function CheckoutPage() {
 
       if (!res.ok) throw new Error(result.error)
 
-      // Redirigir a EcartPay
+      clearCart()
+
       if (result.payment_url) {
-        clearCart()
         window.location.href = result.payment_url
       } else {
-        clearCart()
-        router.push(`/cuenta/ordenes?orden=${result.order_number}`)
+        router.push(`/rastrear?orden=${result.order_number}`)
       }
     } catch (err: any) {
       alert('Error al procesar el pedido: ' + err.message)
@@ -135,7 +143,19 @@ export default function CheckoutPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="font-display text-5xl text-[#111410] mb-8">CHECKOUT</h1>
+      <h1 className="font-display text-5xl text-[#111410] mb-6">CHECKOUT</h1>
+
+      {sandboxMode && (
+        <div className="mb-6 flex items-center gap-3 bg-yellow-50 border-2 border-yellow-400 rounded-xl px-5 py-4">
+          <span className="text-2xl">⚠️</span>
+          <div>
+            <p className="font-bold text-yellow-800 text-sm">MODO PRUEBA ACTIVO</p>
+            <p className="text-yellow-700 text-xs">
+              Los pagos no son reales — se creará una orden de prueba sin cargos a ninguna tarjeta.
+            </p>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -322,16 +342,22 @@ export default function CheckoutPage() {
 
               <Button
                 type="submit"
-                variant="secondary"
+                variant={sandboxMode ? 'outline' : 'secondary'}
                 size="lg"
                 loading={loading}
-                className="w-full mt-5 font-display text-lg tracking-wider"
+                className={`w-full mt-5 font-display text-lg tracking-wider ${
+                  sandboxMode
+                    ? 'border-yellow-400 text-yellow-700 hover:bg-yellow-50'
+                    : ''
+                }`}
               >
-                PAGAR AHORA 🔒
+                {sandboxMode ? '🧪 SIMULAR PAGO' : 'PAGAR AHORA 🔒'}
               </Button>
 
               <p className="text-center text-xs text-gray-400 mt-3">
-                Pago seguro con cifrado SSL. Procesado por EcartPay.
+                {sandboxMode
+                  ? 'Modo prueba — no se realizará ningún cargo real.'
+                  : 'Pago seguro con cifrado SSL. Procesado por EcartPay.'}
               </p>
             </div>
           </div>

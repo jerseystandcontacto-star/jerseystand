@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, Filter, Truck } from 'lucide-react'
+import { Search, Truck, AlertTriangle } from 'lucide-react'
 import { OrderStatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { formatDate, formatPrice } from '@/lib/utils'
@@ -9,45 +9,69 @@ import type { Order, OrderStatus } from '@/types'
 import { ORDER_STATUS_LABELS } from '@/types'
 
 const STATUS_OPTIONS: { value: OrderStatus | 'todos'; label: string }[] = [
-  { value: 'todos', label: 'Todos' },
+  { value: 'todos',     label: 'Todos' },
   { value: 'pendiente', label: 'Pendiente' },
-  { value: 'pagado', label: 'Pagado' },
-  { value: 'preparando', label: 'Preparando' },
-  { value: 'enviado', label: 'Enviado' },
+  { value: 'pagado',    label: 'Pagado' },
+  { value: 'preparando',label: 'Preparando' },
+  { value: 'enviado',   label: 'Enviado' },
   { value: 'entregado', label: 'Entregado' },
   { value: 'cancelado', label: 'Cancelado' },
+  { value: 'prueba',    label: '🧪 Prueba' },
 ]
 
+const TRANSITION_STATUSES: OrderStatus[] = ['pagado', 'preparando', 'enviado', 'entregado', 'cancelado']
+
 export default function AdminOrdenesPage() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
+  const [orders, setOrders]           = useState<Order[]>([])
+  const [loading, setLoading]         = useState(true)
   const [filterStatus, setFilterStatus] = useState<string>('todos')
-  const [search, setSearch] = useState('')
+  const [search, setSearch]           = useState('')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [trackingInput, setTrackingInput] = useState('')
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [updatingId, setUpdatingId]   = useState<string | null>(null)
+  const [updateError, setUpdateError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchOrders()
-  }, [])
+  useEffect(() => { fetchOrders() }, [])
 
   const fetchOrders = async () => {
-    const res = await fetch('/api/admin/orders')
-    const data = await res.json()
-    setOrders(data)
-    setLoading(false)
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/orders')
+      if (!res.ok) throw new Error('Error al cargar órdenes')
+      const data = await res.json()
+      setOrders(data)
+    } catch (e: any) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const updateStatus = async (orderId: string, status: OrderStatus, tracking?: string) => {
+    if (status === 'cancelado') {
+      const ok = window.confirm(
+        '¿Confirmas que deseas CANCELAR esta orden?\n\nEsta acción notificará al cliente y no se puede deshacer fácilmente.'
+      )
+      if (!ok) return
+    }
+
     setUpdatingId(orderId)
-    await fetch(`/api/admin/orders/${orderId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, tracking_number: tracking }),
-    })
-    await fetchOrders()
-    setUpdatingId(null)
-    setSelectedOrder(null)
+    setUpdateError(null)
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, tracking_number: tracking }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al actualizar')
+      await fetchOrders()
+      setSelectedOrder(null)
+    } catch (e: any) {
+      setUpdateError(e.message)
+    } finally {
+      setUpdatingId(null)
+    }
   }
 
   const filtered = orders.filter((o) => {
@@ -133,7 +157,7 @@ export default function AdminOrdenesPage() {
                   </td>
                   <td className="px-6 py-4">
                     <button
-                      onClick={() => { setSelectedOrder(order); setTrackingInput(order.tracking_number || '') }}
+                      onClick={() => { setSelectedOrder(order); setTrackingInput(order.tracking_number || ''); setUpdateError(null) }}
                       className="text-sm text-[#1a5c2e] font-semibold hover:underline"
                     >
                       Gestionar
@@ -157,28 +181,42 @@ export default function AdminOrdenesPage() {
             <div className="mb-4 p-4 bg-gray-50 rounded-xl">
               <p className="text-sm"><strong>Cliente:</strong> {selectedOrder.customer_name}</p>
               <p className="text-sm"><strong>Total:</strong> {formatPrice(selectedOrder.total)}</p>
-              <p className="text-sm"><strong>Estado actual:</strong> {ORDER_STATUS_LABELS[selectedOrder.status]}</p>
+              <p className="text-sm"><strong>Estado actual:</strong>{' '}
+                <span className="font-semibold">{ORDER_STATUS_LABELS[selectedOrder.status]}</span>
+              </p>
             </div>
 
-            <div className="mb-4">
-              <p className="font-semibold text-sm mb-2">Cambiar estado</p>
-              <div className="grid grid-cols-2 gap-2">
-                {(['pagado', 'preparando', 'enviado', 'entregado', 'cancelado'] as OrderStatus[]).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => updateStatus(selectedOrder.id, s)}
-                    disabled={updatingId === selectedOrder.id}
-                    className={`py-2 px-3 rounded-lg text-sm font-semibold border-2 transition-all ${
-                      selectedOrder.status === s
-                        ? 'border-[#1a5c2e] bg-[#1a5c2e] text-white'
-                        : 'border-gray-200 hover:border-[#1a5c2e]'
-                    }`}
-                  >
-                    {ORDER_STATUS_LABELS[s]}
-                  </button>
-                ))}
+            {updateError && (
+              <div className="mb-4 flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                {updateError}
               </div>
-            </div>
+            )}
+
+            {/* No mostrar transiciones para órdenes de prueba */}
+            {selectedOrder.status !== 'prueba' && (
+              <div className="mb-4">
+                <p className="font-semibold text-sm mb-2">Cambiar estado</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {TRANSITION_STATUSES.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => updateStatus(selectedOrder.id, s)}
+                      disabled={updatingId === selectedOrder.id}
+                      className={`py-2 px-3 rounded-lg text-sm font-semibold border-2 transition-all disabled:opacity-50 ${
+                        selectedOrder.status === s
+                          ? 'border-[#1a5c2e] bg-[#1a5c2e] text-white'
+                          : s === 'cancelado'
+                          ? 'border-red-200 text-red-600 hover:border-red-400 hover:bg-red-50'
+                          : 'border-gray-200 hover:border-[#1a5c2e]'
+                      }`}
+                    >
+                      {updatingId === selectedOrder.id ? '...' : ORDER_STATUS_LABELS[s]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mb-5">
               <p className="font-semibold text-sm mb-2 flex items-center gap-2">
@@ -198,6 +236,7 @@ export default function AdminOrdenesPage() {
                   size="sm"
                   loading={updatingId === selectedOrder.id}
                   onClick={() => updateStatus(selectedOrder.id, 'enviado', trackingInput)}
+                  disabled={!trackingInput.trim()}
                 >
                   Guardar y marcar enviado
                 </Button>
@@ -205,7 +244,7 @@ export default function AdminOrdenesPage() {
             </div>
 
             <button
-              onClick={() => setSelectedOrder(null)}
+              onClick={() => { setSelectedOrder(null); setUpdateError(null) }}
               className="w-full py-2.5 border-2 border-gray-200 rounded-xl text-gray-600 font-semibold hover:bg-gray-50 text-sm"
             >
               Cerrar

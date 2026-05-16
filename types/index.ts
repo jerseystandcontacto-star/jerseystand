@@ -20,6 +20,7 @@ export type OrderStatus =
   | 'enviado'
   | 'entregado'
   | 'cancelado'
+  | 'prueba'
 
 export type ShippingType = 'estandar' | 'express' | 'gratis'
 
@@ -329,6 +330,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   enviado: 'Enviado',
   entregado: 'Entregado',
   cancelado: 'Cancelado',
+  prueba: '🧪 Orden de prueba',
 }
 
 // ============================================

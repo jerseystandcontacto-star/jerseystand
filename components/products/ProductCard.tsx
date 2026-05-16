@@ -91,6 +91,20 @@ export function ProductCard({ product }: { product: Product }) {
           {product.name}
         </h3>
 
+        {product.tipo_producto && product.tipo_producto !== 'Jersey' && (
+          <span className={`inline-block mt-1 mb-0.5 px-2 py-0.5 rounded text-[11px] font-semibold ${
+            product.tipo_producto === 'Jersey Retro'
+              ? 'bg-[#c9a227]/20 text-[#c9a227]'
+              : product.tipo_producto === 'Entrenamiento'
+              ? 'bg-green-100 text-green-700'
+              : product.tipo_producto === 'Sudadera'
+              ? 'bg-blue-100 text-blue-700'
+              : 'bg-gray-100 text-gray-600'
+          }`}>
+            {product.tipo_producto}
+          </span>
+        )}
+
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
           <span className="font-bold text-[#1a5c2e] text-base sm:text-lg leading-none">
             {formatPrice(product.price)}

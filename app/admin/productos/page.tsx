@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge'
 import { ImageUploader } from '@/components/admin/ImageUploader'
 import { formatPrice } from '@/lib/utils'
 import type { Product, ProductVariant } from '@/types'
-import { SIZES, BRANDS, LEAGUES, GENDERS, SEASON_TYPES } from '@/types'
+import { SIZES, BRANDS, LEAGUES, GENDERS, SEASON_TYPES, TIPOS_PRODUCTO } from '@/types'
 
 // Derive legacy category from liga for backward compat with the public catalog
 function ligaToCategory(liga: string) {
@@ -96,6 +96,7 @@ export default function AdminProductosPage() {
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Marca</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Liga</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Año</th>
@@ -123,6 +124,7 @@ export default function AdminProductosPage() {
                       </div>
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{product.tipo_producto || '—'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{product.marca || '—'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{product.liga || '—'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{product.anio || '—'}</td>
@@ -188,6 +190,7 @@ export default function AdminProductosPage() {
 // ─── Form Modal ───────────────────────────────────────────────────────────────
 
 const brandOptions   = BRANDS.map((b) => ({ value: b, label: b }))
+
 const leagueOptions  = LEAGUES.map((l) => ({ value: l, label: l }))
 const genderOptions  = GENDERS.map((g) => ({ value: g, label: g }))
 const seasonOptions  = SEASON_TYPES.map((s) => ({ value: s, label: s }))
@@ -204,6 +207,7 @@ function ProductFormModal({
 }) {
   const [formData, setFormData] = useState({
     name:          product?.name          || '',
+    tipo_producto: product?.tipo_producto  || 'Jersey',
     marca:         product?.marca         || '',
     liga:          product?.liga          || '',
     team:          product?.team          || '',
@@ -320,6 +324,14 @@ function ProductFormModal({
               options={[{ value: '', label: 'Seleccionar liga' }, ...leagueOptions]}
             />
           </div>
+
+          {/* Tipo de producto */}
+          <Select
+            label="Tipo de producto"
+            value={formData.tipo_producto}
+            onChange={(e) => set('tipo_producto', e.target.value)}
+            options={TIPOS_PRODUCTO.map((t) => ({ value: t, label: t }))}
+          />
 
           {/* Equipo + Año */}
           <div className="grid grid-cols-2 gap-4">
@@ -482,6 +494,16 @@ function deriveCategory(liga: string): string {
   return 'gear'
 }
 
+function parseTipoProducto(raw: string): string {
+  if (!raw) return 'Jersey'
+  const lower = raw.toLowerCase()
+  if (lower.includes('retro')) return 'Jersey Retro'
+  if (lower === 'jersey') return 'Jersey'
+  if (lower === 'entrenamiento') return 'Entrenamiento'
+  if (lower === 'sudadera') return 'Sudadera'
+  return 'Otro'
+}
+
 function parseSizes(raw: string): string[] {
   if (!raw) return []
   const norm = raw.trim().toLowerCase()
@@ -496,6 +518,7 @@ interface ParsedProduct {
   anio:           string
   marca:          string
   temporada:      string
+  tipo_producto:  string
   genero:         string
   price:          number
   compare_price:  number | null
@@ -536,7 +559,8 @@ function parseExcelRow(raw: Record<string, unknown>): ParsedProduct | null {
     liga,
     anio:          String(row['Temporada / Año'] ?? '').trim(),
     marca:         String(row['Marca'] ?? '').trim(),
-    temporada:     String(row['Tipo'] ?? '').trim(),
+    temporada:     '',
+    tipo_producto: parseTipoProducto(String(row['Tipo'] ?? '').trim()),
     genero:        String(row['Género'] ?? '').trim(),
     price:         toNum(row['Precio (MXN)']) ?? 0,
     compare_price: toNum(row['Precio original']),

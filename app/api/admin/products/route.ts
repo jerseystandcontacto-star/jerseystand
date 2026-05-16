@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
     liga:          productData.liga           || null,
     genero:        productData.genero         || null,
     temporada:     productData.temporada      || null,
+    tipo_producto: productData.tipo_producto  || 'Jersey',
   }
 
   console.log('[POST /api/admin/products] insertando:', insertData.name, '| slug:', slug)

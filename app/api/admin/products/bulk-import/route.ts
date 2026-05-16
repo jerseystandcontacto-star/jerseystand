@@ -3,19 +3,20 @@ import { createAdminClient, requireAdmin } from '@/lib/supabase/server'
 import { slugify } from '@/lib/utils'
 
 interface ImportItem {
-  name:          string
-  team:          string
-  liga:          string
-  anio:          string
-  marca:         string
-  temporada:     string
-  genero:        string
-  price:         number
-  compare_price: number | null
-  featured:      boolean
-  description:   string
-  category:      string
-  sizes:         string[]
+  name:           string
+  team:           string
+  liga:           string
+  anio:           string
+  marca:          string
+  temporada:      string
+  genero:         string
+  tipo_producto:  string
+  price:          number
+  compare_price:  number | null
+  featured:       boolean
+  description:    string
+  category:       string
+  sizes:          string[]
   stock_per_size: number
 }
 
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
           marca:         item.marca         || null,
           temporada:     item.temporada     || null,
           genero:        item.genero        || null,
+          tipo_producto: item.tipo_producto || 'Jersey',
           price:         item.price         || 0,
           compare_price: item.compare_price || null,
           featured:      item.featured      ?? false,

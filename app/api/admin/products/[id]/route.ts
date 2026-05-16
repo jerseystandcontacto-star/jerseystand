@@ -28,6 +28,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     liga:          raw.liga          ?? null,
     genero:        raw.genero        ?? null,
     temporada:     raw.temporada     ?? null,
+    tipo_producto: raw.tipo_producto ?? 'Jersey',
   }
 
   console.log('[PUT /api/admin/products] actualizando id:', id)

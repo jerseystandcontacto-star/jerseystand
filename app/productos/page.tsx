@@ -20,6 +20,7 @@ interface PageProps {
     liga?: string
     genero?: string
     marca?: string
+    tipo?: string
     equipo?: string
     precioMin?: string
     precioMax?: string
@@ -41,7 +42,8 @@ async function getProducts(params: Awaited<PageProps['searchParams']>): Promise<
     if (params.categoria) query = query.eq('category',  params.categoria)
     if (params.liga)      query = query.eq('liga',      params.liga)
     if (params.genero)    query = query.eq('genero',    params.genero)
-    if (params.marca)     query = query.eq('marca',     params.marca)
+    if (params.marca)     query = query.eq('marca',        params.marca)
+    if (params.tipo)      query = query.eq('tipo_producto', params.tipo)
     if (params.equipo)    query = query.ilike('team',   `%${params.equipo}%`)
     if (params.buscar)    query = query.ilike('name',   `%${params.buscar}%`)
     if (params.precioMin) query = query.gte('price',    Number(params.precioMin))
@@ -84,7 +86,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
     ? CATEGORIES.find((c) => c.value === params.categoria)?.label
     : null
 
-  const hasFilters = !!(params.liga || params.genero || params.marca || params.categoria || params.buscar || params.precioMin || params.precioMax)
+  const hasFilters = !!(params.liga || params.genero || params.marca || params.tipo || params.categoria || params.buscar || params.precioMin || params.precioMax)
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">

@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { X } from 'lucide-react'
-import { LEAGUES, GENDERS, BRANDS } from '@/types'
+import { LEAGUES, GENDERS, BRANDS, TIPOS_PRODUCTO } from '@/types'
 
 const PRICE_RANGES = [
   { label: '$0 – $500',        min: '',     max: '500'  },
@@ -12,7 +12,7 @@ const PRICE_RANGES = [
   { label: '$1,500+',          min: '1500', max: ''     },
 ]
 
-const FILTER_KEYS = ['liga', 'genero', 'marca', 'precioMin', 'precioMax', 'buscar']
+const FILTER_KEYS = ['liga', 'genero', 'marca', 'tipo', 'precioMin', 'precioMax', 'buscar']
 
 export function ProductFilters() {
   const router = useRouter()
@@ -92,6 +92,18 @@ export function ProductFilters() {
             label={marca}
             active={params.get('marca') === marca}
             onClick={() => updateFilter('marca', params.get('marca') === marca ? null : marca)}
+          />
+        ))}
+      </FilterSection>
+
+      {/* Tipo de producto */}
+      <FilterSection title="Tipo">
+        {(TIPOS_PRODUCTO as readonly string[]).map((tipo) => (
+          <FilterChip
+            key={tipo}
+            label={tipo}
+            active={params.get('tipo') === tipo}
+            onClick={() => updateFilter('tipo', params.get('tipo') === tipo ? null : tipo)}
           />
         ))}
       </FilterSection>

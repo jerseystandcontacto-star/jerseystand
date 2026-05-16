@@ -20,7 +20,8 @@
       "WebFetch(domain:ecart.com)",
       "WebSearch",
       "WebFetch(domain:ecartpay.com)",
-      "WebFetch(domain:docs.ecartpay.com)"
+      "WebFetch(domain:docs.ecartpay.com)",
+      "Bash(npm install *)"
     ]
   }
 }

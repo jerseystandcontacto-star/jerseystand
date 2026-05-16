@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { Plus, Edit, Trash2, Eye, EyeOff, X } from 'lucide-react'
+import { Plus, Edit, Trash2, Eye, EyeOff, X, Upload, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
@@ -30,6 +30,7 @@ export default function AdminProductosPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [showImport, setShowImport] = useState(false)
 
   useEffect(() => { fetchProducts() }, [])
 
@@ -59,14 +60,24 @@ export default function AdminProductosPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-display text-4xl text-[#111410]">PRODUCTOS</h1>
-        <Button
-          variant="primary"
-          onClick={() => { setEditingProduct(null); setShowForm(true) }}
-          className="gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Nuevo producto
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowImport(true)}
+            className="gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Importar Excel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => { setEditingProduct(null); setShowForm(true) }}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo producto
+          </Button>
+        </div>
       </div>
 
       {/* Tabla */}
@@ -161,6 +172,13 @@ export default function AdminProductosPage() {
           product={editingProduct}
           onClose={() => setShowForm(false)}
           onSave={() => { setShowForm(false); fetchProducts() }}
+        />
+      )}
+
+      {showImport && (
+        <ExcelImportModal
+          onClose={() => setShowImport(false)}
+          onDone={fetchProducts}
         />
       )}
     </div>
@@ -446,6 +464,360 @@ function ProductFormModal({
             </Button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── Excel Import ─────────────────────────────────────────────────────────────
+
+const EUROPA_LEAGUES = new Set([
+  'La Liga', 'Premier League', 'Bundesliga', 'Serie A', 'Ligue 1', 'MLS', 'SuperLiga Argentina',
+])
+
+function deriveCategory(liga: string): string {
+  if (liga === 'Liga MX') return 'liga-mx'
+  if (EUROPA_LEAGUES.has(liga)) return 'europa'
+  if (liga === 'Selección Mexicana' || liga === 'FIFA') return 'seleccion'
+  return 'gear'
+}
+
+function parseSizes(raw: string): string[] {
+  if (!raw) return []
+  const norm = raw.trim().toLowerCase()
+  if (norm === 'única' || norm === 'unica') return ['Única']
+  return raw.split(/[,/;|\s]+/).map((s) => s.trim()).filter(Boolean)
+}
+
+interface ParsedProduct {
+  name:           string
+  team:           string
+  liga:           string
+  anio:           string
+  marca:          string
+  temporada:      string
+  genero:         string
+  price:          number
+  compare_price:  number | null
+  featured:       boolean
+  description:    string
+  category:       string
+  sizes:          string[]
+  stock_per_size: number
+}
+
+function parseExcelRow(raw: Record<string, unknown>): ParsedProduct | null {
+  const row: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(raw)) row[k.trim()] = v
+
+  const name = String(row['Nombre'] ?? '').trim()
+  if (!name) return null
+
+  const toNum = (v: unknown): number | null => {
+    if (v == null || v === '') return null
+    if (typeof v === 'number') return v
+    const n = parseFloat(String(v).replace(/[$,\s]/g, ''))
+    return isNaN(n) ? null : n
+  }
+
+  const liga        = String(row['Liga'] ?? '').trim()
+  const sizesRaw    = String(row['Tallas disponibles'] ?? '').trim()
+  const sizes       = parseSizes(sizesRaw)
+  const stockTotal  = toNum(row['Stock total']) ?? 0
+  const stockPerSize = sizes.length > 0 ? Math.max(1, Math.floor(stockTotal / sizes.length)) : Math.max(1, stockTotal)
+
+  const desc = String(row['Descripción'] ?? '').trim()
+  const hist = String(row['Historia'] ?? '').trim()
+  const dest = String(row['Destacado'] ?? '').trim().toLowerCase()
+
+  return {
+    name,
+    team:          String(row['Equipo'] ?? '').trim(),
+    liga,
+    anio:          String(row['Temporada / Año'] ?? '').trim(),
+    marca:         String(row['Marca'] ?? '').trim(),
+    temporada:     String(row['Tipo'] ?? '').trim(),
+    genero:        String(row['Género'] ?? '').trim(),
+    price:         toNum(row['Precio (MXN)']) ?? 0,
+    compare_price: toNum(row['Precio original']),
+    featured:      dest === 'sí' || dest === 'si' || dest === 'true' || dest === '1',
+    description:   [desc, hist].filter(Boolean).join('\n\n'),
+    category:      deriveCategory(liga),
+    sizes,
+    stock_per_size: stockPerSize,
+  }
+}
+
+// ─── ExcelImportModal ─────────────────────────────────────────────────────────
+
+function ExcelImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [products, setProducts]     = useState<ParsedProduct[]>([])
+  const [selected, setSelected]     = useState<Set<number>>(new Set())
+  const [dragging, setDragging]     = useState(false)
+  const [fileName, setFileName]     = useState('')
+  const [parseError, setParseError] = useState('')
+  const [importing, setImporting]   = useState(false)
+  const [progress, setProgress]     = useState({ current: 0, total: 0 })
+  const [result, setResult]         = useState<{ success: number; skipped: number; errors: string[] } | null>(null)
+
+  const loadFile = async (file: File) => {
+    setParseError('')
+    setProducts([])
+    setResult(null)
+    setFileName(file.name)
+    try {
+      const XLSX = await import('xlsx')
+      const buf  = await file.arrayBuffer()
+      const wb   = XLSX.read(buf, { type: 'array' })
+      const ws   = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[]
+      const parsed = rows.map(parseExcelRow).filter(Boolean) as ParsedProduct[]
+      if (parsed.length === 0) {
+        setParseError('No se detectaron productos. Verifica que los encabezados del Excel sean correctos.')
+        return
+      }
+      setProducts(parsed)
+      setSelected(new Set(parsed.map((_, i) => i)))
+    } catch (err: any) {
+      setParseError('Error al leer el archivo: ' + err.message)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file && /\.(xlsx|xls)$/i.test(file.name)) {
+      loadFile(file)
+    } else {
+      setParseError('Solo se aceptan archivos .xlsx o .xls')
+    }
+  }
+
+  const toggleOne = (i: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
+
+  const toggleAll = () =>
+    setSelected(selected.size === products.length ? new Set() : new Set(products.map((_, i) => i)))
+
+  const handleImport = async () => {
+    const toImport = products.filter((_, i) => selected.has(i))
+    if (!toImport.length) return
+    setImporting(true)
+    setProgress({ current: 0, total: toImport.length })
+
+    let success = 0
+    let skipped = 0
+    const errors: string[] = []
+
+    for (let i = 0; i < toImport.length; i++) {
+      setProgress({ current: i + 1, total: toImport.length })
+      try {
+        const res  = await fetch('/api/admin/products/bulk-import', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ products: [toImport[i]] }),
+        })
+        const data = await res.json()
+        success += data.success ?? 0
+        skipped += data.skipped ?? 0
+        if (data.errors?.length) errors.push(...data.errors)
+      } catch (err: any) {
+        errors.push(`${toImport[i].name}: ${err.message}`)
+      }
+    }
+
+    setResult({ success, skipped, errors })
+    setImporting(false)
+    if (success > 0) onDone()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl w-full max-w-4xl my-8">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="font-display text-2xl text-[#111410]">IMPORTAR DESDE EXCEL</h2>
+          {!importing && (
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        <div className="p-6 flex flex-col gap-5">
+          {/* Drop zone */}
+          {products.length === 0 && !result && (
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
+                dragging ? 'border-[#1a5c2e] bg-[#1a5c2e]/5' : 'border-gray-300 hover:border-gray-400'
+              }`}
+            >
+              <Upload className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <p className="font-semibold text-gray-600 mb-1">Arrastra tu archivo .xlsx aquí</p>
+              <p className="text-sm text-gray-400 mb-4">o haz clic para seleccionar</p>
+              <label className="cursor-pointer">
+                <span className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors">
+                  Seleccionar archivo
+                </span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) loadFile(f) }}
+                />
+              </label>
+            </div>
+          )}
+
+          {parseError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+              {parseError}
+            </div>
+          )}
+
+          {/* Preview table */}
+          {products.length > 0 && !result && !importing && (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-500">
+                  <span className="font-semibold text-[#111410]">{products.length}</span> productos detectados en{' '}
+                  <span className="font-medium">{fileName}</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setProducts([]); setFileName('') }}
+                  className="text-sm text-gray-400 hover:text-gray-600"
+                >
+                  Cambiar archivo
+                </button>
+              </div>
+
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full text-sm min-w-[640px]">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                      <tr>
+                        <th className="px-3 py-2.5 text-left w-8">
+                          <input
+                            type="checkbox"
+                            checked={selected.size === products.length && products.length > 0}
+                            onChange={toggleAll}
+                            className="w-4 h-4 accent-[#1a5c2e]"
+                          />
+                        </th>
+                        {['Nombre', 'Equipo', 'Liga', 'Precio', 'Tallas', 'Dest.'].map((h) => (
+                          <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {products.map((p, i) => (
+                        <tr
+                          key={i}
+                          onClick={() => toggleOne(i)}
+                          className={`cursor-pointer transition-colors hover:bg-gray-50 ${
+                            selected.has(i) ? '' : 'opacity-40'
+                          }`}
+                        >
+                          <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selected.has(i)}
+                              onChange={() => toggleOne(i)}
+                              className="w-4 h-4 accent-[#1a5c2e]"
+                            />
+                          </td>
+                          <td className="px-3 py-2 font-medium text-[#111410] max-w-[200px] truncate">{p.name}</td>
+                          <td className="px-3 py-2 text-gray-600">{p.team || '—'}</td>
+                          <td className="px-3 py-2 text-gray-600">{p.liga || '—'}</td>
+                          <td className="px-3 py-2 font-semibold text-[#1a5c2e]">{formatPrice(p.price)}</td>
+                          <td className="px-3 py-2 text-gray-500 text-xs">{p.sizes.join(', ') || '—'}</td>
+                          <td className="px-3 py-2">
+                            {p.featured
+                              ? <span className="px-1.5 py-0.5 bg-[#c9a227]/20 text-[#c9a227] text-xs rounded font-medium">Sí</span>
+                              : <span className="text-gray-300 text-xs">No</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Progress */}
+          {importing && (
+            <div className="text-center py-10">
+              <div className="w-12 h-12 border-4 border-[#1a5c2e]/20 border-t-[#1a5c2e] rounded-full animate-spin mx-auto mb-4" />
+              <p className="font-semibold text-[#111410] text-lg">
+                Importando {progress.current} de {progress.total}...
+              </p>
+            </div>
+          )}
+
+          {/* Result */}
+          {result && (
+            <div className="flex flex-col gap-3">
+              {result.success > 0 && (
+                <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+                  <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+                  <p className="font-semibold text-green-800">
+                    {result.success} producto{result.success !== 1 ? 's' : ''} importado{result.success !== 1 ? 's' : ''} correctamente
+                  </p>
+                </div>
+              )}
+              {result.skipped > 0 && (
+                <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                  <span className="shrink-0 text-lg">⚠️</span>
+                  <p className="text-yellow-800 text-sm">
+                    {result.skipped} producto{result.skipped !== 1 ? 's' : ''} saltado{result.skipped !== 1 ? 's' : ''} — ya existen con el mismo nombre
+                  </p>
+                </div>
+              )}
+              {result.errors.length > 0 && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <p className="font-semibold text-red-800 text-sm mb-2">
+                    {result.errors.length} error{result.errors.length !== 1 ? 'es' : ''}:
+                  </p>
+                  <ul className="text-red-700 text-xs space-y-1">
+                    {result.errors.map((e, i) => <li key={i}>• {e}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!importing && (
+          <div className="flex items-center justify-between p-6 border-t border-gray-100">
+            <Button type="button" variant="outline" onClick={onClose}>
+              {result ? 'Cerrar' : 'Cancelar'}
+            </Button>
+            {products.length > 0 && !result && (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleImport}
+                disabled={selected.size === 0}
+                className="gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                Importar {selected.size} producto{selected.size !== 1 ? 's' : ''}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

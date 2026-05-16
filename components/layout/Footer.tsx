@@ -137,8 +137,8 @@ export function Footer() {
           <NewsletterInline />
           <div className="mt-3 flex items-center gap-2 text-sm">
             <Mail className="w-4 h-4 text-[#c9a227]" />
-            <a href="mailto:hola@jerseystand.com" className="hover:text-[#c9a227] transition-colors">
-              hola@jerseystand.com
+            <a href="mailto:jerseystandcontacto@gmail.com" className="hover:text-[#c9a227] transition-colors">
+              jerseystandcontacto@gmail.com
             </a>
           </div>
         </div>

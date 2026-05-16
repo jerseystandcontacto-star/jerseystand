@@ -128,8 +128,8 @@ export default function ContactoPage() {
                 <Mail className="w-5 h-5 text-[#c9a227] shrink-0 mt-1" />
                 <div>
                   <p className="font-semibold text-sm">Email</p>
-                  <a href="mailto:hola@jerseystand.com" className="text-[#c9a227] text-sm hover:underline">
-                    hola@jerseystand.com
+                  <a href="mailto:jerseystandcontacto@gmail.com" className="text-[#c9a227] text-sm hover:underline">
+                    jerseystandcontacto@gmail.com
                   </a>
                   <p className="text-white/40 text-xs">Respuesta en 24 horas hábiles</p>
                 </div>

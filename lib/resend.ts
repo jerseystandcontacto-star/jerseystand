@@ -6,7 +6,7 @@ function getResend() {
 }
 
 function getFrom() { return process.env.EMAIL_FROM || 'Jersey Stand <noreply@jerseystand.com>' }
-function getAdminEmail() { return process.env.EMAIL_ADMIN || 'admin@jerseystand.com' }
+function getAdminEmail() { return process.env.EMAIL_ADMIN || 'jerseystandcontacto@gmail.com' }
 
 // Confirmación de orden al cliente
 export async function sendOrderConfirmation(order: Order) {
@@ -89,7 +89,7 @@ export async function sendOrderConfirmation(order: Order) {
 
         <div style="background: #111410; padding: 20px; text-align: center; color: #666; font-size: 12px;">
           <p>Jersey Stand | Gear auténtico 🏆</p>
-          <p><a href="https://www.instagram.com/jerseystandcontacto/" style="color: #c9a227;">@jerseystand</a></p>
+          <p><a href="https://www.instagram.com/jerseystandcontacto/" style="color: #c9a227;">@jerseystandcontacto</a></p>
         </div>
       </body>
       </html>
@@ -232,7 +232,7 @@ export async function sendQuoteConfirmation(quote: {
             <p style="margin: 0;"><strong>Tipo de producto:</strong> ${quote.product_type}</p>
             <p style="margin: 5px 0 0;"><strong>Cantidad:</strong> ${quote.quantity_range} piezas</p>
           </div>
-          <p>Si tienes dudas urgentes, escríbenos por Instagram: <a href="https://www.instagram.com/jerseystandcontacto/" style="color: #1a5c2e;">@jerseystand</a></p>
+          <p>Si tienes dudas urgentes, escríbenos por Instagram: <a href="https://www.instagram.com/jerseystandcontacto/" style="color: #1a5c2e;">@jerseystandcontacto</a></p>
         </div>
         <div style="background: #111410; padding: 20px; text-align: center; color: #666; font-size: 12px;">
           <p>Jersey Stand | Gear auténtico 🏆</p>

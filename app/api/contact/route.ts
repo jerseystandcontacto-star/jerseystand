@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     await resend.emails.send({
       from,
-      to: process.env.EMAIL_ADMIN || 'admin@jerseystand.com',
+      to: process.env.EMAIL_ADMIN || 'jerseystandcontacto@gmail.com',
       replyTo: data.email,
       subject: `📩 Contacto: ${data.subject}`,
       html: `

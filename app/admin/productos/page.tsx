@@ -99,7 +99,7 @@ export default function AdminProductosPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Marca</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Liga</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Año</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Temporada</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Equipación</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Género</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Precio</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Stock</th>
@@ -341,7 +341,7 @@ function ProductFormModal({
           {/* Temporada + Género */}
           <div className="grid grid-cols-2 gap-4">
             <Select
-              label="Temporada"
+              label="Equipación"
               value={formData.temporada}
               onChange={(e) => set('temporada', e.target.value)}
               options={[{ value: '', label: 'Seleccionar temporada' }, ...seasonOptions]}

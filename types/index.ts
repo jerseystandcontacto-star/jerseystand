@@ -39,6 +39,7 @@ export interface Product {
   genero: string | null
   temporada: string | null
   tipo_producto: string | null
+  pais: string | null
   price: number
   compare_price: number | null
   images: string[]
@@ -275,7 +276,7 @@ export const PRODUCT_TYPES: { value: ProductType; label: string }[] = [
 
 export const TIPOS_PRODUCTO = ['Jersey', 'Jersey Retro', 'Entrenamiento', 'Sudadera', 'Otro'] as const
 
-export const BRANDS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Umbro', 'Otra'] as const
+export const BRANDS = ['Nike', 'Adidas', 'Puma', 'New Balance', 'Umbro', 'Kappa', 'Mizuno', 'Otra'] as const
 
 export const LEAGUES = [
   'Liga MX',

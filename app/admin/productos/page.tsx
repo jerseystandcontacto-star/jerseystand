@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge'
 import { ImageUploader } from '@/components/admin/ImageUploader'
 import { formatPrice } from '@/lib/utils'
 import type { Product, ProductVariant } from '@/types'
-import { SIZES, BRANDS, LEAGUES, GENDERS, SEASON_TYPES, TIPOS_PRODUCTO } from '@/types'
+import { SIZES, LEAGUES, GENDERS, SEASON_TYPES, TIPOS_PRODUCTO } from '@/types'
 
 // Derive legacy category from liga for backward compat with the public catalog
 function ligaToCategory(liga: string) {
@@ -189,7 +189,6 @@ export default function AdminProductosPage() {
 
 // ─── Form Modal ───────────────────────────────────────────────────────────────
 
-const brandOptions   = BRANDS.map((b) => ({ value: b, label: b }))
 
 const leagueOptions  = LEAGUES.map((l) => ({ value: l, label: l }))
 const genderOptions  = GENDERS.map((g) => ({ value: g, label: g }))
@@ -311,11 +310,11 @@ function ProductFormModal({
 
           {/* Marca + Liga */}
           <div className="grid grid-cols-2 gap-4">
-            <Select
+            <Input
               label="Marca"
               value={formData.marca}
               onChange={(e) => set('marca', e.target.value)}
-              options={[{ value: '', label: 'Seleccionar marca' }, ...brandOptions]}
+              placeholder="Ej. Nike, Adidas, Puma..."
             />
             <Select
               label="Liga"

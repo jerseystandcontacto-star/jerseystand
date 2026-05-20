@@ -100,7 +100,7 @@ export default function CheckoutPage() {
       setUserEmail(user.email ?? '')
 
       const { data: prof } = await supabase
-        .from('user_profiles')
+        .from('users_profiles')
         .select('*')
         .eq('id', user.id)
         .single()
@@ -211,7 +211,7 @@ export default function CheckoutPage() {
 
       // Save address to profile if requested
       if (saveAddress && userId) {
-        supabase.from('user_profiles').update({
+        supabase.from('users_profiles').update({
           full_name:          data.full_name,
           phone:              data.phone              || null,
           address_street:     data.street             || null,

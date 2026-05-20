@@ -15,7 +15,7 @@ export default async function CuentaPage() {
 
   // Con sesión: obtener perfil y órdenes en paralelo
   const [{ data: profileData }, { data: ordersData }] = await Promise.all([
-    supabase.from('user_profiles').select('*').eq('id', user.id).single(),
+    supabase.from('users_profiles').select('*').eq('id', user.id).single(),
     supabase.from('orders').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
   ])
 

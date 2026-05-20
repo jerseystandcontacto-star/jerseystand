@@ -24,7 +24,7 @@ export async function PUT(req: NextRequest) {
     // Usar adminClient para bypassear RLS
     const adminDb = createAdminClient()
     const { error } = await adminDb
-      .from('user_profiles')
+      .from('users_profiles')
       .update({
         full_name:          full_name          || null,
         phone:              phone              || null,

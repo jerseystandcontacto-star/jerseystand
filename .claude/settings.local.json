@@ -21,7 +21,15 @@
       "WebSearch",
       "WebFetch(domain:ecartpay.com)",
       "WebFetch(domain:docs.ecartpay.com)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\gonza\\\\jerseystand\" -Force)",
+      "Bash(Select-Object Name, Mode)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\gonza\\\\jerseystand\" -Recurse -File -Filter \"*.ts\" -o -Filter \"*.tsx\")",
+      "Bash(Select-Object -First 50)",
+      "Bash(Format-Table FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\gonza\\\\jerseystand\" -Recurse -File | Where-Object {$_.Extension -in @\\('.ts', '.tsx'\\)} | Select-Object -First 50 | ForEach-Object { $_.FullName })",
+      "Bash(xargs grep -l \"supabase\\\\|getUser\\\\|onAuthStateChange\")",
+      "Bash(git rm *)"
     ]
   }
 }

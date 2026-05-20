@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { ShoppingCart, Menu, X, User, Search, Package, LogOut, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -21,7 +20,6 @@ import { CATEGORIES } from '@/types'
 import { CartDrawer } from '@/components/cart/CartDrawer'
 
 export function Navbar() {
-  const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [loggedIn, setLoggedIn] = useState(false)
@@ -61,8 +59,8 @@ export function Navbar() {
     setDropdownOpen(false)
     setMenuOpen(false)
     await supabase.auth.signOut()
-    router.refresh()
-    router.push('/')
+    // Recarga completa para que el servidor vea las cookies limpias
+    window.location.href = '/'
   }
 
   return (

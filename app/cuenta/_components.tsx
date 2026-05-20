@@ -158,7 +158,6 @@ function ProfileForm({
   userId: string
   userEmail: string
 }) {
-  const supabase = createClient()
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -181,21 +180,21 @@ function ProfileForm({
   const onSubmit = async (data: ProfileFormData) => {
     setSaving(true)
     setSaveError('')
-    const { error } = await supabase.from('user_profiles').update({
-      full_name:          data.full_name,
-      phone:              data.phone              || null,
-      address_street:     data.address_street     || null,
-      address_number:     data.address_number     || null,
-      address_colonia:    data.address_colonia    || null,
-      address_city:       data.address_city       || null,
-      address_state:      data.address_state      || null,
-      address_zip:        data.address_zip        || null,
-      address_references: data.address_references || null,
-    }).eq('id', userId)
-    setSaving(false)
-    if (error) { setSaveError('Error al guardar. Intenta de nuevo.'); return }
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    try {
+      const res = await fetch('/api/cuenta/perfil', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+      if (!res.ok) { setSaveError(result.error || 'Error al guardar. Intenta de nuevo.'); return }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch {
+      setSaveError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

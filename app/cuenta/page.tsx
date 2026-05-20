@@ -69,7 +69,7 @@ export default function CuentaPage() {
 
   // Vista de login/registro
   if (tab === 'login' || !profile) {
-    return <AuthForms onSuccess={() => { window.location.reload() }} />
+    return <AuthForms onSuccess={() => { router.refresh(); router.push('/') }} />
   }
 
   return (

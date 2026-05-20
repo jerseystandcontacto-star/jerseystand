@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { ShoppingCart, Menu, X, User, Search } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 function InstagramIcon({ className }: { className?: string }) {
   return (
@@ -20,13 +21,23 @@ import { CartDrawer } from '@/components/cart/CartDrawer'
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
   const { getTotalItems, toggleCart } = useCartStore()
   const totalItems = getTotalItems()
+  const supabase = createClient()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
     window.addEventListener('scroll', onScroll)
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setLoggedIn(!!user))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setLoggedIn(!!session?.user)
+    })
+    return () => subscription.unsubscribe()
   }, [])
 
   return (
@@ -106,10 +117,13 @@ export function Navbar() {
 
             <Link
               href="/cuenta"
-              className="text-white/70 hover:text-white transition-colors p-2"
-              aria-label="Mi cuenta"
+              className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors p-2"
+              aria-label={loggedIn ? 'Mi cuenta' : 'Iniciar sesión'}
             >
-              <User className="w-5 h-5" />
+              <User className={`w-5 h-5 ${loggedIn ? 'text-[#c9a227]' : ''}`} />
+              <span className="hidden lg:inline text-sm font-semibold">
+                {loggedIn ? 'Mi cuenta' : 'Iniciar sesión'}
+              </span>
             </Link>
 
             <button
@@ -175,7 +189,7 @@ export function Navbar() {
                   onClick={() => setMenuOpen(false)}
                   className="block py-2 text-white/80 hover:text-white font-semibold text-sm"
                 >
-                  Mi cuenta
+                  {loggedIn ? 'Mi cuenta' : 'Iniciar sesión'}
                 </Link>
               </li>
               <li className="px-6">

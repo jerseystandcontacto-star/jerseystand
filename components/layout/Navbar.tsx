@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
-import { ShoppingCart, Menu, X, User, Search } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { ShoppingCart, Menu, X, User, Search, Package, LogOut, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -14,14 +15,18 @@ function InstagramIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
 import { useCartStore } from '@/store/cartStore'
 import { CATEGORIES } from '@/types'
 import { CartDrawer } from '@/components/cart/CartDrawer'
 
 export function Navbar() {
+  const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [loggedIn, setLoggedIn] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const { getTotalItems, toggleCart } = useCartStore()
   const totalItems = getTotalItems()
   const supabase = createClient()
@@ -32,6 +37,7 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // Auth state tracking
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setLoggedIn(!!user))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
@@ -39,6 +45,25 @@ export function Navbar() {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleSignOut = async () => {
+    setDropdownOpen(false)
+    setMenuOpen(false)
+    await supabase.auth.signOut()
+    router.refresh()
+    router.push('/')
+  }
 
   return (
     <>
@@ -65,13 +90,10 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Categorías — solo xl+ para que no se amontonen */}
+          {/* Categorías */}
           <ul className="hidden xl:flex items-center gap-5">
             <li>
-              <Link
-                href="/productos"
-                className="text-white/80 hover:text-[#c9a227] text-sm font-semibold uppercase transition-colors whitespace-nowrap"
-              >
+              <Link href="/productos" className="text-white/80 hover:text-[#c9a227] text-sm font-semibold uppercase transition-colors whitespace-nowrap">
                 Todos
               </Link>
             </li>
@@ -87,9 +109,8 @@ export function Navbar() {
             ))}
           </ul>
 
-          {/* Acciones + CTA */}
+          {/* Acciones */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* CTA — visible desde lg, nunca corta en dos líneas */}
             <Link
               href="/vendo-mi-jersey"
               className="hidden lg:flex items-center whitespace-nowrap bg-[#c9a227] text-[#111410] text-sm font-bold uppercase px-4 py-2 rounded-lg hover:bg-[#e8bc35] transition-colors"
@@ -97,11 +118,7 @@ export function Navbar() {
               Vendo mi jersey
             </Link>
 
-            <Link
-              href="/productos"
-              className="text-white/70 hover:text-white transition-colors p-2"
-              aria-label="Buscar"
-            >
+            <Link href="/productos" className="text-white/70 hover:text-white transition-colors p-2" aria-label="Buscar">
               <Search className="w-5 h-5" />
             </Link>
 
@@ -115,16 +132,58 @@ export function Navbar() {
               <InstagramIcon className="w-5 h-5" />
             </a>
 
-            <Link
-              href="/cuenta"
-              className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors p-2"
-              aria-label={loggedIn ? 'Mi cuenta' : 'Iniciar sesión'}
-            >
-              <User className={`w-5 h-5 ${loggedIn ? 'text-[#c9a227]' : ''}`} />
-              <span className="hidden lg:inline text-sm font-semibold">
-                {loggedIn ? 'Mi cuenta' : 'Iniciar sesión'}
-              </span>
-            </Link>
+            {/* User — dropdown si logueado, link si no */}
+            {loggedIn ? (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="flex items-center gap-1 text-[#c9a227] hover:text-[#e8bc35] transition-colors p-2"
+                  aria-label="Mi cuenta"
+                >
+                  <User className="w-5 h-5" />
+                  <span className="hidden lg:inline text-sm font-semibold">Mi cuenta</span>
+                  <ChevronDown className={`hidden lg:inline w-3 h-3 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-52 bg-[#1a1c18] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+                    <Link
+                      href="/cuenta"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-white/80 hover:bg-white/10 hover:text-white text-sm transition-colors"
+                    >
+                      <User className="w-4 h-4 shrink-0" />
+                      Mi cuenta
+                    </Link>
+                    <Link
+                      href="/cuenta?tab=pedidos"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-white/80 hover:bg-white/10 hover:text-white text-sm transition-colors"
+                    >
+                      <Package className="w-4 h-4 shrink-0" />
+                      Mis pedidos
+                    </Link>
+                    <div className="border-t border-white/10" />
+                    <button
+                      onClick={handleSignOut}
+                      className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-white/10 text-sm transition-colors w-full text-left"
+                    >
+                      <LogOut className="w-4 h-4 shrink-0" />
+                      Cerrar sesión
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/cuenta"
+                className="flex items-center gap-1 text-white/70 hover:text-white transition-colors p-2"
+                aria-label="Iniciar sesión"
+              >
+                <User className="w-5 h-5" />
+                <span className="hidden lg:inline text-sm font-semibold">Iniciar sesión</span>
+              </Link>
+            )}
 
             <button
               onClick={toggleCart}
@@ -139,7 +198,7 @@ export function Navbar() {
               )}
             </button>
 
-            {/* Hamburger — oculto en xl+ */}
+            {/* Hamburger */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="xl:hidden text-white p-2"
@@ -150,16 +209,12 @@ export function Navbar() {
           </div>
         </nav>
 
-        {/* Menú mobile / tablet — visible bajo xl */}
+        {/* Menú mobile */}
         {menuOpen && (
           <div className="xl:hidden bg-[#111410] border-t border-white/10 pb-4">
             <ul className="flex flex-col">
               <li>
-                <Link
-                  href="/productos"
-                  onClick={() => setMenuOpen(false)}
-                  className="block px-6 py-3 text-white/80 hover:bg-white/5 hover:text-[#c9a227] font-semibold uppercase text-sm tracking-wide"
-                >
+                <Link href="/productos" onClick={() => setMenuOpen(false)} className="block px-6 py-3 text-white/80 hover:bg-white/5 hover:text-[#c9a227] font-semibold uppercase text-sm tracking-wide">
                   Todos los productos
                 </Link>
               </li>
@@ -175,29 +230,37 @@ export function Navbar() {
                 </li>
               ))}
               <li className="px-6 pt-3 border-t border-white/10 mt-2">
-                <Link
-                  href="/vendo-mi-jersey"
-                  onClick={() => setMenuOpen(false)}
-                  className="block py-2 text-[#c9a227] hover:text-[#e8bc35] font-bold text-sm"
-                >
+                <Link href="/vendo-mi-jersey" onClick={() => setMenuOpen(false)} className="block py-2 text-[#c9a227] hover:text-[#e8bc35] font-bold text-sm">
                   Vendo mi jersey
                 </Link>
               </li>
+              {loggedIn ? (
+                <>
+                  <li className="px-6">
+                    <Link href="/cuenta" onClick={() => setMenuOpen(false)} className="block py-2 text-white/80 hover:text-white font-semibold text-sm">
+                      Mi cuenta
+                    </Link>
+                  </li>
+                  <li className="px-6">
+                    <Link href="/cuenta?tab=pedidos" onClick={() => setMenuOpen(false)} className="block py-2 text-white/80 hover:text-white font-semibold text-sm">
+                      Mis pedidos
+                    </Link>
+                  </li>
+                  <li className="px-6">
+                    <button onClick={handleSignOut} className="block py-2 text-red-400 font-semibold text-sm text-left w-full">
+                      Cerrar sesión
+                    </button>
+                  </li>
+                </>
+              ) : (
+                <li className="px-6">
+                  <Link href="/cuenta" onClick={() => setMenuOpen(false)} className="block py-2 text-white/80 hover:text-white font-semibold text-sm">
+                    Iniciar sesión
+                  </Link>
+                </li>
+              )}
               <li className="px-6">
-                <Link
-                  href="/cuenta"
-                  onClick={() => setMenuOpen(false)}
-                  className="block py-2 text-white/80 hover:text-white font-semibold text-sm"
-                >
-                  {loggedIn ? 'Mi cuenta' : 'Iniciar sesión'}
-                </Link>
-              </li>
-              <li className="px-6">
-                <Link
-                  href="/rastrear"
-                  onClick={() => setMenuOpen(false)}
-                  className="block py-2 text-white/80 hover:text-white font-semibold text-sm"
-                >
+                <Link href="/rastrear" onClick={() => setMenuOpen(false)} className="block py-2 text-white/80 hover:text-white font-semibold text-sm">
                   Rastrear pedido
                 </Link>
               </li>
@@ -206,9 +269,7 @@ export function Navbar() {
         )}
       </header>
 
-      {/* Espacio para el header fijo */}
       <div className="h-[104px]" />
-
       <CartDrawer />
     </>
   )

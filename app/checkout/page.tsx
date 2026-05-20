@@ -6,27 +6,27 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Image from 'next/image'
-import { Tag, Truck, CheckCircle } from 'lucide-react'
+import { Tag, Truck, CheckCircle, MapPin, Save } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
-import { formatPrice, calculateShipping } from '@/lib/utils'
-import type { ShippingType } from '@/types'
+import { formatPrice } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import type { ShippingType, UserProfile } from '@/types'
 import { SHIPPING_OPTIONS } from '@/types'
 
 const checkoutSchema = z.object({
   full_name: z.string().min(3, 'Nombre requerido'),
-  email: z.string().email('Email inválido'),
-  phone: z.string().min(10, 'Teléfono requerido'),
-  street: z.string().min(3, 'Calle requerida'),
-  number: z.string().min(1, 'Número requerido'),
-  colonia: z.string().min(2, 'Colonia requerida'),
-  city: z.string().min(2, 'Ciudad requerida'),
-  state: z.string().min(2, 'Estado requerido'),
-  zip: z.string().length(5, 'Código postal debe tener 5 dígitos'),
+  email:     z.string().email('Email inválido'),
+  phone:     z.string().min(10, 'Teléfono requerido'),
+  street:    z.string().min(3, 'Calle requerida'),
+  number:    z.string().min(1, 'Número requerido'),
+  colonia:   z.string().min(2, 'Colonia requerida'),
+  city:      z.string().min(2, 'Ciudad requerida'),
+  state:     z.string().min(2, 'Estado requerido'),
+  zip:       z.string().length(5, 'Código postal debe tener 5 dígitos'),
   references: z.string().optional(),
 })
-
 type CheckoutForm = z.infer<typeof checkoutSchema>
 
 const STATE_CODES: Record<string, string> = {
@@ -40,8 +40,7 @@ const STATE_CODES: Record<string, string> = {
   'Tamaulipas': 'TAM', 'Tlaxcala': 'TLA', 'Veracruz': 'VER', 'Yucatán': 'YUC',
   'Zacatecas': 'ZAC',
 }
-const toStateCode = (state: string) =>
-  STATE_CODES[state] ?? state.substring(0, 3).toUpperCase()
+const toStateCode = (state: string) => STATE_CODES[state] ?? state.substring(0, 3).toUpperCase()
 
 const MEXICAN_STATES = [
   'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche', 'Chiapas',
@@ -53,22 +52,24 @@ const MEXICAN_STATES = [
 
 export default function CheckoutPage() {
   const router = useRouter()
+  const supabase = createClient()
   const { items, getSubtotal, clearCart } = useCartStore()
+
   const [shippingType, setShippingType] = useState<ShippingType>('estandar')
   const [couponCode, setCouponCode] = useState('')
   const [couponDiscount, setCouponDiscount] = useState(0)
   const [couponError, setCouponError] = useState('')
   const [couponLoading, setCouponLoading] = useState(false)
   const [couponApplied, setCouponApplied] = useState<string | null>(null)
-  const [loading, setLoading]       = useState(false)
+  const [loading, setLoading] = useState(false)
   const [sandboxMode, setSandboxMode] = useState(false)
 
-  useEffect(() => {
-    fetch('/api/settings')
-      .then((r) => r.json())
-      .then((s) => setSandboxMode(s.modo_prueba === 'true'))
-      .catch(() => {})
-  }, [])
+  // Auth & profile
+  const [userId, setUserId] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string>('')
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [altAddress, setAltAddress] = useState(false)
+  const [saveAddress, setSaveAddress] = useState(false)
 
   const subtotal = getSubtotal()
   const shippingCost = subtotal >= 1500 ? 0 : (shippingType === 'express' ? 349 : 149)
@@ -77,8 +78,87 @@ export default function CheckoutPage() {
   const {
     register,
     handleSubmit,
+    reset,
+    getValues,
     formState: { errors },
   } = useForm<CheckoutForm>({ resolver: zodResolver(checkoutSchema) })
+
+  // Load settings
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((s) => setSandboxMode(s.modo_prueba === 'true'))
+      .catch(() => {})
+  }, [])
+
+  // Load user profile and auto-fill form
+  useEffect(() => {
+    async function loadProfile() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      setUserId(user.id)
+      setUserEmail(user.email ?? '')
+
+      const { data: prof } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (!prof) return
+      setProfile(prof as UserProfile)
+
+      // Auto-fill with saved data
+      reset({
+        full_name:  prof.full_name          ?? '',
+        email:      user.email              ?? '',
+        phone:      prof.phone              ?? '',
+        street:     prof.address_street     ?? '',
+        number:     prof.address_number     ?? '',
+        colonia:    prof.address_colonia    ?? '',
+        city:       prof.address_city       ?? '',
+        state:      prof.address_state      ?? '',
+        zip:        prof.address_zip        ?? '',
+        references: prof.address_references ?? '',
+      })
+    }
+    loadProfile()
+  }, [])
+
+  // Toggle "send to different address"
+  const handleAltAddressToggle = () => {
+    const current = getValues()
+    if (!altAddress) {
+      // Activating: clear address fields, keep personal data
+      reset({
+        full_name:  current.full_name,
+        email:      current.email,
+        phone:      current.phone,
+        street:     '',
+        number:     '',
+        colonia:    '',
+        city:       '',
+        state:      '',
+        zip:        '',
+        references: '',
+      })
+    } else {
+      // Deactivating: restore from profile
+      reset({
+        full_name:  profile?.full_name          ?? current.full_name,
+        email:      userEmail                   || current.email,
+        phone:      profile?.phone              ?? current.phone,
+        street:     profile?.address_street     ?? '',
+        number:     profile?.address_number     ?? '',
+        colonia:    profile?.address_colonia    ?? '',
+        city:       profile?.address_city       ?? '',
+        state:      profile?.address_state      ?? '',
+        zip:        profile?.address_zip        ?? '',
+        references: profile?.address_references ?? '',
+      })
+    }
+    setAltAddress(!altAddress)
+  }
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return
@@ -110,7 +190,6 @@ export default function CheckoutPage() {
     setLoading(true)
 
     try {
-      // Paso 1: crear orden en Supabase
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -130,6 +209,21 @@ export default function CheckoutPage() {
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
 
+      // Save address to profile if requested
+      if (saveAddress && userId) {
+        supabase.from('user_profiles').update({
+          full_name:          data.full_name,
+          phone:              data.phone              || null,
+          address_street:     data.street             || null,
+          address_number:     data.number             || null,
+          address_colonia:    data.colonia            || null,
+          address_city:       data.city               || null,
+          address_state:      data.state              || null,
+          address_zip:        data.zip                || null,
+          address_references: data.references         || null,
+        }).eq('id', userId).then(() => {})
+      }
+
       clearCart()
 
       if (sandboxMode) {
@@ -137,7 +231,6 @@ export default function CheckoutPage() {
         return
       }
 
-      // Paso 2: lanzar EcartPay SDK
       const nameParts  = data.full_name.trim().split(/\s+/)
       const first_name = nameParts[0]
       const last_name  = nameParts.slice(1).join(' ') || nameParts[0]
@@ -149,9 +242,7 @@ export default function CheckoutPage() {
           price:    item.product.price,
           quantity: item.quantity,
         })),
-        ...(shippingCost > 0
-          ? [{ name: 'Envío', price: shippingCost, quantity: 1 }]
-          : []),
+        ...(shippingCost > 0 ? [{ name: 'Envío', price: shippingCost, quantity: 1 }] : []),
       ]
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -205,17 +296,15 @@ export default function CheckoutPage() {
           <span className="text-2xl">⚠️</span>
           <div>
             <p className="font-bold text-yellow-800 text-sm">MODO PRUEBA ACTIVO</p>
-            <p className="text-yellow-700 text-xs">
-              Los pagos no son reales — se creará una orden de prueba sin cargos a ninguna tarjeta.
-            </p>
+            <p className="text-yellow-700 text-xs">Los pagos no son reales — se creará una orden de prueba sin cargos.</p>
           </div>
         </div>
       )}
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Formulario */}
           <div className="lg:col-span-2 flex flex-col gap-8">
+
             {/* Datos personales */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6">
               <h2 className="font-semibold text-lg text-[#111410] mb-5 flex items-center gap-2">
@@ -231,10 +320,13 @@ export default function CheckoutPage() {
 
             {/* Dirección de envío */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6">
-              <h2 className="font-semibold text-lg text-[#111410] mb-5 flex items-center gap-2">
-                <span className="w-7 h-7 bg-[#1a5c2e] text-white text-sm rounded-full flex items-center justify-center font-bold">2</span>
-                Dirección de envío
-              </h2>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-semibold text-lg text-[#111410] flex items-center gap-2">
+                  <span className="w-7 h-7 bg-[#1a5c2e] text-white text-sm rounded-full flex items-center justify-center font-bold">2</span>
+                  Dirección de envío
+                </h2>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <Input label="Calle" {...register('street')} error={errors.street?.message} required />
@@ -257,6 +349,37 @@ export default function CheckoutPage() {
                   <Input label="Referencias" {...register('references')} placeholder="Entre calles, color de casa, etc." />
                 </div>
               </div>
+
+              {/* Dirección alternativa */}
+              {profile && (
+                <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-3">
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <div
+                      onClick={handleAltAddressToggle}
+                      className={`w-11 h-6 rounded-full transition-colors relative ${altAddress ? 'bg-[#1a5c2e]' : 'bg-gray-200'}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${altAddress ? 'left-6' : 'left-1'}`} />
+                    </div>
+                    <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <MapPin className="w-4 h-4 text-[#1a5c2e]" />
+                      Enviar a una dirección diferente
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={saveAddress}
+                      onChange={(e) => setSaveAddress(e.target.checked)}
+                      className="w-4 h-4 accent-[#1a5c2e]"
+                    />
+                    <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <Save className="w-4 h-4 text-[#1a5c2e]" />
+                      Guardar esta dirección en mi perfil
+                    </span>
+                  </label>
+                </div>
+              )}
             </div>
 
             {/* Tipo de envío */}
@@ -265,7 +388,6 @@ export default function CheckoutPage() {
                 <span className="w-7 h-7 bg-[#1a5c2e] text-white text-sm rounded-full flex items-center justify-center font-bold">3</span>
                 Tipo de envío
               </h2>
-
               {subtotal >= 1500 ? (
                 <div className="flex items-center gap-3 p-4 bg-[#1a5c2e]/10 border-2 border-[#1a5c2e] rounded-xl">
                   <CheckCircle className="w-5 h-5 text-[#1a5c2e]" />
@@ -327,12 +449,7 @@ export default function CheckoutPage() {
                     placeholder="JERSEYSTAND10"
                     className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#1a5c2e] uppercase text-sm"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={applyCoupon}
-                    loading={couponLoading}
-                  >
+                  <Button type="button" variant="outline" onClick={applyCoupon} loading={couponLoading}>
                     Aplicar
                   </Button>
                 </div>
@@ -341,12 +458,10 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* Resumen del pedido */}
+          {/* Resumen */}
           <div className="lg:col-span-1">
             <div className="bg-white border border-gray-100 rounded-2xl p-6 sticky top-24">
               <h2 className="font-semibold text-lg text-[#111410] mb-5">Resumen del pedido</h2>
-
-              {/* Items */}
               <div className="flex flex-col gap-3 mb-5">
                 {items.map((item) => (
                   <div key={item.variant.id} className="flex gap-3">
@@ -364,9 +479,7 @@ export default function CheckoutPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-[#111410] truncate">{item.product.name}</p>
                       <p className="text-xs text-gray-400">{item.variant.size} · {item.variant.type}</p>
-                      <p className="text-sm font-bold text-[#1a5c2e]">
-                        {formatPrice(item.product.price * item.quantity)}
-                      </p>
+                      <p className="text-sm font-bold text-[#1a5c2e]">{formatPrice(item.product.price * item.quantity)}</p>
                     </div>
                   </div>
                 ))}
@@ -401,9 +514,7 @@ export default function CheckoutPage() {
                 size="lg"
                 loading={loading}
                 className={`w-full mt-5 font-display text-lg tracking-wider ${
-                  sandboxMode
-                    ? 'border-yellow-400 text-yellow-700 hover:bg-yellow-50'
-                    : ''
+                  sandboxMode ? 'border-yellow-400 text-yellow-700 hover:bg-yellow-50' : ''
                 }`}
               >
                 {sandboxMode ? '🧪 SIMULAR PAGO' : 'PAGAR AHORA 🔒'}

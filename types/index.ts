@@ -137,6 +137,13 @@ export interface UserProfile {
   full_name: string | null
   phone: string | null
   default_address: ShippingAddress | null
+  address_street: string | null
+  address_number: string | null
+  address_colonia: string | null
+  address_city: string | null
+  address_state: string | null
+  address_zip: string | null
+  address_references: string | null
   role: 'customer' | 'admin'
   created_at: string
   updated_at: string

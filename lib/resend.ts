@@ -5,157 +5,290 @@ function getResend() {
   return new Resend(process.env.RESEND_API_KEY || 'dummy')
 }
 
-function getFrom() { return process.env.EMAIL_FROM || 'Jersey Stand <noreply@jerseystand.com>' }
-function getAdminEmail() { return process.env.EMAIL_ADMIN || 'jerseystandcontacto@gmail.com' }
+function getFrom() {
+  const email = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+  return `Jersey Stand <${email}>`
+}
 
-// Confirmación de orden al cliente
-export async function sendOrderConfirmation(order: Order) {
-  const itemsHtml = order.items
-    ?.map(
-      (item) => `
-      <tr>
-        <td style="padding: 10px; border-bottom: 1px solid #eee;">
-          ${item.product_name} (${item.size} - ${item.type})
-        </td>
-        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">
-          ${item.quantity}
-        </td>
-        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">
-          $${(item.price * item.quantity).toFixed(2)} MXN
-        </td>
-      </tr>
-    `
-    )
-    .join('')
+function getAdminEmail() {
+  return process.env.ADMIN_EMAIL || 'jerseystandcontacto@gmail.com'
+}
 
-  const resend = getResend()
-  await resend.emails.send({
-    from: getFrom(),
-    to: order.customer_email,
-    subject: `✅ Orden confirmada #${order.order_number} - Jersey Stand`,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="utf-8"></head>
-      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-        <div style="background: #111410; padding: 30px; text-align: center;">
-          <h1 style="color: #c9a227; margin: 0; font-size: 28px;">JERSEY STAND</h1>
-          <p style="color: #fff; margin: 10px 0 0;">jerseystand.com</p>
+const HEADER = `
+  <div style="background:#111410;padding:30px;text-align:center;">
+    <h1 style="margin:0;font-size:28px;letter-spacing:3px;">
+      <span style="color:#ffffff;font-family:Arial,sans-serif;font-weight:900;">JERSEY </span><span style="color:#c9a227;font-family:Arial,sans-serif;font-weight:900;">STAND</span>
+    </h1>
+  </div>
+`
+
+const FOOTER = `
+  <div style="background:#111410;padding:20px;text-align:center;color:#888;font-size:12px;">
+    <p style="margin:0 0 8px;">Jersey Stand | Gear auténtico</p>
+    <p style="margin:0;">
+      <a href="https://www.instagram.com/jerseystandcontacto/" style="color:#c9a227;text-decoration:none;">@jerseystandcontacto</a>
+      &nbsp;·&nbsp;
+      <a href="mailto:jerseystandcontacto@gmail.com" style="color:#c9a227;text-decoration:none;">jerseystandcontacto@gmail.com</a>
+    </p>
+  </div>
+`
+
+function wrap(body: string) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;">
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;font-family:Arial,sans-serif;color:#333333;">
+    ${HEADER}
+    ${body}
+    ${FOOTER}
+  </div>
+</body></html>`
+}
+
+// 1. Bienvenida al registrarse
+export async function sendWelcomeEmail(email: string, name: string) {
+  try {
+    const resend = getResend()
+    await resend.emails.send({
+      from: getFrom(),
+      to: email,
+      subject: '¡Bienvenido a Jersey Stand! 👕',
+      html: wrap(`
+        <div style="padding:40px 30px;">
+          <h2 style="color:#111410;margin:0 0 16px;font-size:22px;">¡Hola, ${name}!</h2>
+          <p style="font-size:16px;line-height:1.6;margin:0 0 16px;">
+            Ya eres parte de la familia <strong>Jersey Stand</strong>.
+          </p>
+          <p style="font-size:15px;line-height:1.6;margin:0 0 32px;color:#555;">
+            Explora nuestra colección de jerseys de fútbol auténticos — ligas nacionales, selecciones y gear exclusivo.
+          </p>
+          <div style="text-align:center;margin:0 0 32px;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/catalogo"
+               style="background:#c9a227;color:#111410;padding:14px 40px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">
+              Ver catálogo
+            </a>
+          </div>
+          <p style="color:#888;font-size:13px;margin:0;">
+            Síguenos en Instagram
+            <a href="https://www.instagram.com/jerseystandcontacto/" style="color:#c9a227;">@jerseystandcontacto</a>
+            para enterarte primero de nuevos lanzamientos y promociones.
+          </p>
         </div>
+      `),
+    })
+    console.log('Email enviado: welcome a', email)
+  } catch (err) {
+    console.error('[email] welcome error:', err)
+  }
+}
 
-        <div style="padding: 30px;">
-          <h2 style="color: #1a5c2e;">¡Tu orden fue confirmada!</h2>
-          <p>Hola <strong>${order.customer_name}</strong>,</p>
-          <p>Recibimos tu pedido y ya lo estamos procesando. Te notificaremos cuando sea enviado.</p>
+// 2. Confirmación de orden al cliente
+export async function sendOrderConfirmation(order: Order) {
+  try {
+    const itemsHtml = order.items
+      ?.map(
+        (item) => `
+        <tr>
+          <td style="padding:10px 8px;border-bottom:1px solid #eeeeee;">
+            <strong>${item.product_name}</strong><br>
+            <span style="color:#888;font-size:13px;">${item.size} · ${item.type}${item.season ? ` · ${item.season}` : ''}</span>
+          </td>
+          <td style="padding:10px 8px;border-bottom:1px solid #eeeeee;text-align:center;">${item.quantity}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #eeeeee;text-align:right;white-space:nowrap;">$${(item.price * item.quantity).toFixed(2)} MXN</td>
+        </tr>
+      `
+      )
+      .join('')
 
-          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0;"><strong>Número de orden:</strong> ${order.order_number}</p>
-            <p style="margin: 5px 0 0;"><strong>Estado:</strong> Pagado ✅</p>
+    const shippingLabel: Record<string, string> = {
+      estandar: 'Estándar (5–7 días hábiles)',
+      express: 'Express (2–3 días hábiles)',
+      gratis: 'Envío gratis',
+    }
+
+    const addr = order.shipping_address
+    const resend = getResend()
+    await resend.emails.send({
+      from: getFrom(),
+      to: order.customer_email,
+      subject: `✅ Orden #${order.order_number} confirmada - Jersey Stand`,
+      html: wrap(`
+        <div style="padding:40px 30px;">
+          <h2 style="color:#111410;margin:0 0 8px;font-size:22px;">¡Orden confirmada!</h2>
+          <p style="margin:0 0 24px;">
+            Hola <strong>${order.customer_name}</strong>, recibimos tu pedido y ya lo estamos procesando.
+            Te avisamos cuando tu paquete salga.
+          </p>
+
+          <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin:0 0 24px;">
+            <p style="margin:0;"><strong>Número de orden:</strong> ${order.order_number}</p>
+            <p style="margin:6px 0 0;"><strong>Tipo de envío:</strong> ${shippingLabel[order.shipping_type] || order.shipping_type}</p>
           </div>
 
-          <h3>Resumen del pedido</h3>
-          <table style="width: 100%; border-collapse: collapse;">
+          <h3 style="margin:0 0 12px;color:#111410;font-size:16px;">Resumen del pedido</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
             <thead>
-              <tr style="background: #111410; color: #fff;">
-                <th style="padding: 10px; text-align: left;">Producto</th>
-                <th style="padding: 10px; text-align: center;">Cant.</th>
-                <th style="padding: 10px; text-align: right;">Total</th>
+              <tr style="background:#111410;color:#ffffff;">
+                <th style="padding:10px 8px;text-align:left;font-weight:600;">Producto</th>
+                <th style="padding:10px 8px;text-align:center;font-weight:600;">Cant.</th>
+                <th style="padding:10px 8px;text-align:right;font-weight:600;">Total</th>
               </tr>
             </thead>
             <tbody>${itemsHtml}</tbody>
           </table>
 
-          <div style="text-align: right; margin-top: 15px;">
-            <p>Subtotal: $${order.subtotal.toFixed(2)} MXN</p>
-            ${order.discount > 0 ? `<p style="color: #1a5c2e;">Descuento: -$${order.discount.toFixed(2)} MXN</p>` : ''}
-            <p>Envío: ${order.shipping_cost === 0 ? 'Gratis 🎉' : `$${order.shipping_cost.toFixed(2)} MXN`}</p>
-            <h3 style="color: #111410;">Total: $${order.total.toFixed(2)} MXN</h3>
+          <div style="text-align:right;margin-top:16px;padding-top:16px;border-top:2px solid #eeeeee;font-size:14px;">
+            <p style="margin:4px 0;">Subtotal: $${order.subtotal.toFixed(2)} MXN</p>
+            ${order.discount > 0 ? `<p style="margin:4px 0;color:#1a5c2e;">Descuento: -$${order.discount.toFixed(2)} MXN</p>` : ''}
+            <p style="margin:4px 0;">Envío: ${order.shipping_cost === 0 ? 'Gratis 🎉' : `$${order.shipping_cost.toFixed(2)} MXN`}</p>
+            <p style="font-size:18px;font-weight:bold;color:#111410;margin:10px 0 0;">Total: $${order.total.toFixed(2)} MXN</p>
           </div>
 
-          <h3>Dirección de entrega</h3>
-          <p>
-            ${order.shipping_address.full_name}<br>
-            ${order.shipping_address.street} ${order.shipping_address.number}<br>
-            Col. ${order.shipping_address.colonia}<br>
-            ${order.shipping_address.city}, ${order.shipping_address.state}<br>
-            CP ${order.shipping_address.zip}
+          <h3 style="margin:28px 0 12px;color:#111410;font-size:16px;">Dirección de entrega</h3>
+          <p style="margin:0;line-height:1.9;color:#555;font-size:14px;">
+            ${addr.full_name}<br>
+            ${addr.street} ${addr.number}<br>
+            Col. ${addr.colonia}<br>
+            ${addr.city}, ${addr.state} — CP ${addr.zip}
+            ${addr.references ? `<br><em>Ref: ${addr.references}</em>` : ''}
           </p>
 
-          <p style="color: #666; font-size: 14px;">
-            Puedes rastrear tu pedido en
-            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/rastrear?orden=${order.order_number}" style="color: #1a5c2e;">jerseystand.com/rastrear</a>
+          <p style="margin:28px 0 0;color:#888;font-size:13px;">
+            Rastrea tu pedido en
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/rastrear?orden=${order.order_number}" style="color:#c9a227;">jerseystand.com/rastrear</a>
           </p>
         </div>
-
-        <div style="background: #111410; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p>Jersey Stand | Gear auténtico 🏆</p>
-          <p><a href="https://www.instagram.com/jerseystandcontacto/" style="color: #c9a227;">@jerseystandcontacto</a></p>
-        </div>
-      </body>
-      </html>
-    `,
-  })
+      `),
+    })
+    console.log('Email enviado: order-confirmation a', order.customer_email)
+  } catch (err) {
+    console.error('[email] order-confirmation error:', err)
+  }
 }
 
-// Notificación al admin de nueva orden
+// 3. Notificación al admin de nueva orden
 export async function sendAdminOrderNotification(order: Order) {
-  const resend = getResend()
-  await resend.emails.send({
-    from: getFrom(),
-    to: getAdminEmail(),
-    subject: `🆕 Nueva orden #${order.order_number} - $${order.total.toFixed(2)} MXN`,
-    html: `
-      <h2>Nueva orden recibida</h2>
-      <p><strong>Número:</strong> ${order.order_number}</p>
-      <p><strong>Cliente:</strong> ${order.customer_name} (${order.customer_email})</p>
-      <p><strong>Total:</strong> $${order.total.toFixed(2)} MXN</p>
-      <p><strong>Envío:</strong> ${order.shipping_type}</p>
-      <p><a href="${process.env.NEXT_PUBLIC_SITE_URL}/admin/ordenes/${order.id}">Ver orden en el panel</a></p>
-    `,
-  })
+  try {
+    const itemsList =
+      order.items
+        ?.map(
+          (item) =>
+            `• ${item.product_name} (${item.size} · ${item.type}) ×${item.quantity} — $${(item.price * item.quantity).toFixed(2)} MXN`
+        )
+        .join('<br>') || ''
+
+    const addr = order.shipping_address
+    const resend = getResend()
+    await resend.emails.send({
+      from: getFrom(),
+      to: getAdminEmail(),
+      subject: `🛒 Nueva orden #${order.order_number} - $${order.total.toFixed(2)} MXN`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;padding:24px;">
+          <h2 style="margin:0 0 20px;">🛒 Nueva orden recibida</h2>
+          <p><strong>Número:</strong> ${order.order_number}</p>
+          <p><strong>Cliente:</strong> ${order.customer_name}</p>
+          <p><strong>Email:</strong> ${order.customer_email}</p>
+          <p><strong>Teléfono:</strong> ${order.customer_phone || '—'}</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+          <p><strong>Productos:</strong><br><br>${itemsList}</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+          <p><strong>Tipo de envío:</strong> ${order.shipping_type}</p>
+          <p><strong>Dirección:</strong> ${addr.street} ${addr.number}, Col. ${addr.colonia}, ${addr.city}, ${addr.state} CP ${addr.zip}</p>
+          ${order.discount > 0 ? `<p><strong>Descuento aplicado:</strong> -$${order.discount.toFixed(2)} MXN</p>` : ''}
+          <p style="font-size:20px;font-weight:bold;color:#111410;"><strong>Total: $${order.total.toFixed(2)} MXN</strong></p>
+          <p style="margin-top:24px;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/admin/ordenes/${order.id}"
+               style="background:#c9a227;color:#111410;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">
+              Ver orden en el panel
+            </a>
+          </p>
+        </div>
+      `,
+    })
+    console.log('Email enviado: admin-order-notification para orden', order.order_number)
+  } catch (err) {
+    console.error('[email] admin-order-notification error:', err)
+  }
 }
 
-// Email cuando el pedido es enviado
+// 4. Orden enviada (admin cambia status a "enviado")
 export async function sendShippingNotification(order: Order, trackingNumber: string) {
-  const resend = getResend()
-  await resend.emails.send({
-    from: getFrom(),
-    to: order.customer_email,
-    subject: `🚚 Tu pedido #${order.order_number} fue enviado - Jersey Stand`,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #111410; padding: 30px; text-align: center;">
-          <h1 style="color: #c9a227; margin: 0;">JERSEY STAND</h1>
-        </div>
+  try {
+    const resend = getResend()
+    await resend.emails.send({
+      from: getFrom(),
+      to: order.customer_email,
+      subject: `📦 Tu pedido #${order.order_number} está en camino`,
+      html: wrap(`
+        <div style="padding:40px 30px;">
+          <h2 style="color:#111410;margin:0 0 16px;font-size:22px;">¡Tu pedido está en camino! 🚀</h2>
+          <p style="margin:0 0 24px;">
+            Hola <strong>${order.customer_name}</strong>, tu pedido <strong>${order.order_number}</strong> fue enviado.
+          </p>
 
-        <div style="padding: 30px;">
-          <h2 style="color: #1a5c2e;">¡Tu pedido va en camino! 🚀</h2>
-          <p>Hola <strong>${order.customer_name}</strong>,</p>
-          <p>Tu pedido <strong>${order.order_number}</strong> fue enviado.</p>
-
-          <div style="background: #1a5c2e; color: #fff; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-            <p style="margin: 0; font-size: 14px;">Número de guía</p>
-            <h2 style="margin: 5px 0; letter-spacing: 2px;">${trackingNumber}</h2>
+          <div style="background:#111410;border-radius:8px;padding:24px;text-align:center;margin:0 0 24px;">
+            <p style="margin:0 0 6px;color:#888;font-size:12px;letter-spacing:2px;text-transform:uppercase;">Número de guía</p>
+            <p style="margin:0;color:#c9a227;font-size:26px;font-weight:bold;letter-spacing:3px;">${trackingNumber}</p>
           </div>
 
-          <p>Puedes rastrear tu pedido con la guía anterior en el sitio de la paquetería.</p>
+          <p style="color:#555;margin:0 0 12px;font-size:14px;">
+            Usa este número en el sitio de la paquetería para rastrear tu envío.
+          </p>
+          <p style="color:#555;margin:0 0 32px;font-size:14px;">
+            <strong>Tiempo estimado de entrega:</strong> 3–7 días hábiles.
+          </p>
 
-          <div style="text-align: center; margin: 30px 0;">
+          <div style="text-align:center;">
             <a href="${process.env.NEXT_PUBLIC_SITE_URL}/rastrear?orden=${order.order_number}"
-               style="background: #c9a227; color: #111410; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+               style="background:#c9a227;color:#111410;padding:14px 40px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">
               Rastrear mi pedido
             </a>
           </div>
         </div>
-      </body>
-      </html>
-    `,
-  })
+      `),
+    })
+    console.log('Email enviado: shipping-notification a', order.customer_email)
+  } catch (err) {
+    console.error('[email] shipping-notification error:', err)
+  }
 }
 
-// Notificación al admin: nuevo jersey a comprar
+// 5. Confirmación de suscripción al newsletter
+export async function sendNewsletterConfirmation(email: string) {
+  try {
+    const resend = getResend()
+    await resend.emails.send({
+      from: getFrom(),
+      to: email,
+      subject: '¡Ya eres parte de Jersey Stand! 🎽',
+      html: wrap(`
+        <div style="padding:40px 30px;text-align:center;">
+          <h2 style="color:#111410;margin:0 0 16px;font-size:22px;">¡Ya eres parte del equipo!</h2>
+          <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">
+            Gracias por suscribirte. Serás el primero en enterarte de:
+          </p>
+          <ul style="text-align:left;display:inline-block;color:#444;line-height:2.2;font-size:15px;margin:0 0 36px;padding-left:20px;">
+            <li>Nuevos jerseys y gear exclusivo</li>
+            <li>Promociones y descuentos especiales</li>
+            <li>Lanzamientos de temporada</li>
+            <li>Preventas y ediciones limitadas</li>
+          </ul>
+          <div>
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/catalogo"
+               style="background:#c9a227;color:#111410;padding:14px 40px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">
+              Ver catálogo
+            </a>
+          </div>
+        </div>
+      `),
+    })
+    console.log('Email enviado: newsletter-confirmation a', email)
+  } catch (err) {
+    console.error('[email] newsletter-confirmation error:', err)
+  }
+}
+
+// 6. Notificación al admin: nuevo jersey para vender
 export async function sendAdminCompraNotification(compra: {
   customer_name: string
   email: string
@@ -168,39 +301,53 @@ export async function sendAdminCompraNotification(compra: {
   description?: string | null
   photos: string[]
 }) {
-  const resend = getResend()
-  const conditionLabel: Record<string, string> = {
-    nuevo: 'Nuevo', como_nuevo: 'Como nuevo', buen_estado: 'Buen estado', regular: 'Regular',
-  }
-  const photosHtml = compra.photos
-    .map((url) => `<img src="${url}" style="width:120px;height:120px;object-fit:cover;border-radius:8px;margin:4px;" />`)
-    .join('')
+  try {
+    const conditionLabel: Record<string, string> = {
+      nuevo: 'Nuevo',
+      como_nuevo: 'Como nuevo',
+      buen_estado: 'Buen estado',
+      regular: 'Regular',
+    }
+    const photosHtml = compra.photos
+      .map(
+        (url) =>
+          `<img src="${url}" style="width:120px;height:120px;object-fit:cover;border-radius:8px;margin:4px;" />`
+      )
+      .join('')
 
-  await resend.emails.send({
-    from: getFrom(),
-    to: getAdminEmail(),
-    subject: `🏷️ Nueva solicitud de compra — ${compra.team} (${compra.size}) — $${compra.asking_price} MXN`,
-    html: `
-      <h2 style="color:#1a5c2e;">Nueva solicitud: Te compramos tu jersey</h2>
-      <p><strong>Cliente:</strong> ${compra.customer_name}</p>
-      <p><strong>Email:</strong> ${compra.email}</p>
-      <p><strong>WhatsApp:</strong> <a href="https://wa.me/${compra.whatsapp.replace(/\D/g, '')}">${compra.whatsapp}</a></p>
-      <hr>
-      <p><strong>Equipo:</strong> ${compra.team}</p>
-      <p><strong>Talla:</strong> ${compra.size}</p>
-      <p><strong>Temporada:</strong> ${compra.season}</p>
-      <p><strong>Estado:</strong> ${conditionLabel[compra.condition] ?? compra.condition}</p>
-      <p><strong>Precio pedido:</strong> $${compra.asking_price.toFixed(2)} MXN</p>
-      ${compra.description ? `<p><strong>Descripción:</strong> ${compra.description}</p>` : ''}
-      <h3>Fotos</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;">${photosHtml}</div>
-      <p style="margin-top:20px;">
-        <a href="${process.env.NEXT_PUBLIC_SITE_URL}/admin/compras" style="background:#1a5c2e;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;">
-          Ver en el panel admin
-        </a>
-      </p>
-    `,
-  })
+    const resend = getResend()
+    await resend.emails.send({
+      from: getFrom(),
+      to: getAdminEmail(),
+      subject: `👕 Cliente quiere vender un jersey - Jersey Stand`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;padding:24px;">
+          <h2 style="margin:0 0 20px;">👕 Cliente quiere vender un jersey</h2>
+          <p><strong>Nombre:</strong> ${compra.customer_name}</p>
+          <p><strong>Email:</strong> ${compra.email}</p>
+          <p><strong>WhatsApp:</strong> <a href="https://wa.me/${compra.whatsapp.replace(/\D/g, '')}" style="color:#c9a227;">${compra.whatsapp}</a></p>
+          <hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+          <p><strong>Equipo:</strong> ${compra.team}</p>
+          <p><strong>Talla:</strong> ${compra.size}</p>
+          <p><strong>Temporada:</strong> ${compra.season}</p>
+          <p><strong>Condición:</strong> ${conditionLabel[compra.condition] ?? compra.condition}</p>
+          <p><strong>Precio que pide:</strong> $${compra.asking_price.toFixed(2)} MXN</p>
+          ${compra.description ? `<p><strong>Descripción:</strong> ${compra.description}</p>` : ''}
+          <h3 style="margin:20px 0 10px;">Fotos</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">${photosHtml}</div>
+          <p style="margin-top:28px;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/admin/compras"
+               style="background:#c9a227;color:#111410;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">
+              Ver en panel admin
+            </a>
+          </p>
+        </div>
+      `,
+    })
+    console.log('Email enviado: admin-compra-notification para', compra.customer_name)
+  } catch (err) {
+    console.error('[email] admin-compra-notification error:', err)
+  }
 }
 
 // Confirmación de cotización al cliente
@@ -210,37 +357,34 @@ export async function sendQuoteConfirmation(quote: {
   product_type: string
   quantity_range: string
 }) {
-  const resend = getResend()
-  await resend.emails.send({
-    from: getFrom(),
-    to: quote.email,
-    subject: '✅ Recibimos tu cotización - Jersey Stand',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="utf-8"></head>
-      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-        <div style="background: #111410; padding: 30px; text-align: center;">
-          <h1 style="color: #c9a227; margin: 0; font-size: 28px;">JERSEY STAND</h1>
-          <p style="color: #fff; margin: 10px 0 0;">jerseystand.com</p>
-        </div>
-        <div style="padding: 30px;">
-          <h2 style="color: #1a5c2e;">¡Tu solicitud fue recibida!</h2>
-          <p>Hola <strong>${quote.customer_name}</strong>,</p>
-          <p>Recibimos tu solicitud de cotización. Nuestro equipo la revisará y te contactará en un máximo de <strong>24–48 horas hábiles</strong> con el presupuesto personalizado.</p>
-          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0;"><strong>Tipo de producto:</strong> ${quote.product_type}</p>
-            <p style="margin: 5px 0 0;"><strong>Cantidad:</strong> ${quote.quantity_range} piezas</p>
+  try {
+    const resend = getResend()
+    await resend.emails.send({
+      from: getFrom(),
+      to: quote.email,
+      subject: '✅ Recibimos tu cotización - Jersey Stand',
+      html: wrap(`
+        <div style="padding:40px 30px;">
+          <h2 style="color:#111410;margin:0 0 16px;font-size:22px;">¡Cotización recibida!</h2>
+          <p style="margin:0 0 16px;">
+            Hola <strong>${quote.customer_name}</strong>, recibimos tu solicitud.
+            Nuestro equipo la revisará y te contactará en un máximo de <strong>24–48 horas hábiles</strong> con el presupuesto personalizado.
+          </p>
+          <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin:0 0 24px;">
+            <p style="margin:0;"><strong>Tipo de producto:</strong> ${quote.product_type}</p>
+            <p style="margin:6px 0 0;"><strong>Cantidad:</strong> ${quote.quantity_range} piezas</p>
           </div>
-          <p>Si tienes dudas urgentes, escríbenos por Instagram: <a href="https://www.instagram.com/jerseystandcontacto/" style="color: #1a5c2e;">@jerseystandcontacto</a></p>
+          <p style="color:#888;font-size:13px;margin:0;">
+            Para consultas urgentes escríbenos por Instagram:
+            <a href="https://www.instagram.com/jerseystandcontacto/" style="color:#c9a227;">@jerseystandcontacto</a>
+          </p>
         </div>
-        <div style="background: #111410; padding: 20px; text-align: center; color: #666; font-size: 12px;">
-          <p>Jersey Stand | Gear auténtico 🏆</p>
-        </div>
-      </body>
-      </html>
-    `,
-  })
+      `),
+    })
+    console.log('Email enviado: quote-confirmation a', quote.email)
+  } catch (err) {
+    console.error('[email] quote-confirmation error:', err)
+  }
 }
 
 // Notificación al admin de nueva cotización
@@ -255,60 +399,36 @@ export async function sendAdminQuoteNotification(quote: {
   budget_range?: string | null
   notes?: string | null
 }) {
-  const resend = getResend()
-  await resend.emails.send({
-    from: getFrom(),
-    to: getAdminEmail(),
-    subject: `🆕 Nueva cotización de ${quote.customer_name} - Jersey Stand`,
-    html: `
-      <h2>Nueva solicitud de cotización</h2>
-      <p><strong>Cliente:</strong> ${quote.customer_name}</p>
-      <p><strong>Email:</strong> ${quote.email}</p>
-      <p><strong>Teléfono:</strong> ${quote.phone}</p>
-      <p><strong>Ciudad:</strong> ${quote.city}</p>
-      <hr>
-      <p><strong>Tipo de producto:</strong> ${quote.product_type}</p>
-      <p><strong>Cantidad:</strong> ${quote.quantity_range} piezas</p>
-      ${quote.team_name ? `<p><strong>Equipo/nombre:</strong> ${quote.team_name}</p>` : ''}
-      ${quote.budget_range ? `<p><strong>Presupuesto:</strong> ${quote.budget_range}</p>` : ''}
-      ${quote.notes ? `<p><strong>Notas:</strong> ${quote.notes}</p>` : ''}
-      <p><a href="${process.env.NEXT_PUBLIC_SITE_URL}/admin/cotizaciones">Ver en el panel de admin</a></p>
-    `,
-  })
-}
-
-// Confirmación de suscripción al newsletter
-export async function sendNewsletterConfirmation(email: string) {
-  const resend = getResend()
-  await resend.emails.send({
-    from: getFrom(),
-    to: email,
-    subject: '¡Bienvenido al Jersey Stand! 🏆',
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #111410; padding: 30px; text-align: center;">
-          <h1 style="color: #c9a227; margin: 0;">JERSEY STAND</h1>
-        </div>
-
-        <div style="padding: 30px; text-align: center;">
-          <h2>¡Ya eres parte del equipo!</h2>
-          <p>Gracias por suscribirte. Serás el primero en saber sobre:</p>
-          <ul style="text-align: left; display: inline-block;">
-            <li>Nuevos jerseys y gear exclusivo</li>
-            <li>Promociones y descuentos especiales</li>
-            <li>Lanzamientos de temporada</li>
-          </ul>
-          <p style="margin-top: 30px;">
-            <a href="${process.env.NEXT_PUBLIC_SITE_URL}"
-               style="background: #1a5c2e; color: #fff; padding: 12px 30px; text-decoration: none; border-radius: 5px;">
-              Ver la tienda
+  try {
+    const resend = getResend()
+    await resend.emails.send({
+      from: getFrom(),
+      to: getAdminEmail(),
+      subject: `🆕 Nueva cotización de ${quote.customer_name} - Jersey Stand`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;padding:24px;">
+          <h2 style="margin:0 0 20px;">Nueva solicitud de cotización</h2>
+          <p><strong>Cliente:</strong> ${quote.customer_name}</p>
+          <p><strong>Email:</strong> ${quote.email}</p>
+          <p><strong>Teléfono:</strong> ${quote.phone}</p>
+          <p><strong>Ciudad:</strong> ${quote.city}</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
+          <p><strong>Tipo de producto:</strong> ${quote.product_type}</p>
+          <p><strong>Cantidad:</strong> ${quote.quantity_range} piezas</p>
+          ${quote.team_name ? `<p><strong>Equipo/nombre:</strong> ${quote.team_name}</p>` : ''}
+          ${quote.budget_range ? `<p><strong>Presupuesto:</strong> ${quote.budget_range}</p>` : ''}
+          ${quote.notes ? `<p><strong>Notas:</strong> ${quote.notes}</p>` : ''}
+          <p style="margin-top:24px;">
+            <a href="${process.env.NEXT_PUBLIC_SITE_URL}/admin/cotizaciones"
+               style="background:#c9a227;color:#111410;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">
+              Ver en panel admin
             </a>
           </p>
         </div>
-      </body>
-      </html>
-    `,
-  })
+      `,
+    })
+    console.log('Email enviado: admin-quote-notification para', quote.customer_name)
+  } catch (err) {
+    console.error('[email] admin-quote-notification error:', err)
+  }
 }

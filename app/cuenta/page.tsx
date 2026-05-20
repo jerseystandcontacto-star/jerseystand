@@ -179,8 +179,16 @@ function AuthForms({ onSuccess }: { onSuccess: () => void }) {
       password,
       options: { data: { full_name: name } },
     })
-    if (error) setError(error.message)
-    else setSuccessMsg('¡Cuenta creada! Revisa tu email para confirmar.')
+    if (error) {
+      setError(error.message)
+    } else {
+      fetch('/api/auth/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name }),
+      }).catch(() => {})
+      setSuccessMsg('¡Cuenta creada! Revisa tu email para confirmar.')
+    }
     setLoading(false)
   }
 

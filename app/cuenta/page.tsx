@@ -174,22 +174,30 @@ function AuthForms({ onSuccess }: { onSuccess: () => void }) {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signUp({
+    const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: name } },
     })
-    if (error) {
-      setError(error.message)
-    } else {
-      fetch('/api/auth/welcome', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name }),
-      }).catch(() => {})
-      setSuccessMsg('¡Cuenta creada! Revisa tu email para confirmar.')
+    if (signUpError) {
+      setError(signUpError.message)
+      setLoading(false)
+      return
+    }
+    fetch('/api/auth/welcome', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name }),
+    }).catch(() => {})
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      setError(signInError.message)
+      setLoading(false)
+      return
     }
     setLoading(false)
+    setSuccessMsg('¡Bienvenido a Jersey Stand!')
+    setTimeout(() => onSuccess(), 1000)
   }
 
   return (

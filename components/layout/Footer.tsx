@@ -11,7 +11,13 @@ function InstagramIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-import { CATEGORIES } from '@/types'
+const FOOTER_CATS = [
+  { href: '/productos?categoria=liga-mx',   label: 'Liga MX' },
+  { href: '/productos?categoria=seleccion', label: 'Selección Mexicana' },
+  { href: '/productos?categoria=europa',    label: 'Europa' },
+  { href: '/productos?categoria=retro',     label: 'Retro / Vintage' },
+  { href: '/productos?categoria=gear',      label: 'Gear Deportivo' },
+]
 
 export function Footer() {
   return (
@@ -84,12 +90,9 @@ export function Footer() {
                 Todos los productos
               </Link>
             </li>
-            {CATEGORIES.map((cat) => (
-              <li key={cat.value}>
-                <Link
-                  href={`/productos?categoria=${cat.value}`}
-                  className="text-sm hover:text-[#c9a227] transition-colors"
-                >
+            {FOOTER_CATS.map((cat) => (
+              <li key={cat.href}>
+                <Link href={cat.href} className="text-sm hover:text-[#c9a227] transition-colors">
                   {cat.label}
                 </Link>
               </li>
@@ -150,9 +153,15 @@ export function Footer() {
           <p className="text-xs text-white/40">
             © {new Date().getFullYear()} Jersey Stand. Todos los derechos reservados.
           </p>
-          <p className="text-xs text-white/40">
-            Hecho con ❤️ para los futboleros de México
-          </p>
+          <div className="flex items-center gap-4">
+            <Link href="/privacidad" className="text-xs text-white/40 hover:text-white/70 transition-colors">
+              Privacidad
+            </Link>
+            <Link href="/terminos" className="text-xs text-white/40 hover:text-white/70 transition-colors">
+              Términos
+            </Link>
+            <p className="text-xs text-white/40">Hecho con ❤️ para los futboleros de México</p>
+          </div>
         </div>
       </div>
     </footer>

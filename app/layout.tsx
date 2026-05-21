@@ -4,7 +4,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://jerseystand.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://jerseystand.shop'),
   title: {
     default: 'Jersey Stand | Gear de Fútbol Auténtico en México',
     template: '%s | Jersey Stand',
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'es_MX',
     siteName: 'Jersey Stand',
-    images: [{ url: '/og-image.jpg', width: 1200, height: 630 }],
+    images: [{ url: 'https://jerseystand.shop/og-image.jpg', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',

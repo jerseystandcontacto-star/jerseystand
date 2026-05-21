@@ -7,7 +7,19 @@ import { ProductCard } from '@/components/products/ProductCard'
 import { ProductFilters } from '@/components/products/ProductFilters'
 import { ProductGridSkeleton } from '@/components/ui/Loading'
 import type { Product } from '@/types'
-import { CATEGORIES } from '@/types'
+
+const EUROPA_PAISES = [
+  'España', 'Inglaterra', 'Alemania', 'Italia', 'Francia',
+  'Portugal', 'Países Bajos', 'Bélgica', 'Turquía',
+]
+
+const CATEGORY_TITLES: Record<string, string> = {
+  'liga-mx':   'Liga MX',
+  'seleccion': 'Selección Mexicana',
+  'europa':    'Europa',
+  'retro':     'Retro & Vintage',
+  'gear':      'Gear Deportivo',
+}
 
 export const metadata: Metadata = {
   title: 'Catálogo de Jerseys | Jersey Stand',
@@ -38,7 +50,32 @@ async function getProducts(params: Awaited<PageProps['searchParams']>): Promise<
       .select('*, variants:product_variants(*)')
       .eq('active', true)
 
-    if (params.categoria) query = query.eq('category',      params.categoria)
+    // Filtro de categoría navbar
+    if (params.categoria) {
+      switch (params.categoria) {
+        case 'liga-mx':
+          query = query
+            .eq('pais', 'México')
+            .in('tipo_producto', ['Jersey', 'Jersey Retro', 'Entrenamiento'])
+          break
+        case 'seleccion':
+          query = query
+            .or('team.ilike.%México%,team.ilike.%Tri%,team.ilike.%Selección%')
+            .eq('pais', 'México')
+          break
+        case 'europa':
+          query = query.in('pais', EUROPA_PAISES)
+          break
+        case 'retro':
+          query = query.eq('tipo_producto', 'Jersey Retro')
+          break
+        case 'gear':
+          query = query.in('tipo_producto', ['Entrenamiento', 'Sudadera', 'Otro'])
+          break
+      }
+    }
+
+    // Filtros del sidebar (se combinan con el filtro de categoría)
     if (params.pais)      query = query.eq('pais',          params.pais)
     if (params.genero)    query = query.eq('genero',        params.genero)
     if (params.marca)     query = query.eq('marca',         params.marca)
@@ -79,9 +116,7 @@ export default async function ProductosPage({ searchParams }: PageProps) {
       })
     : products
 
-  const categoryLabel = params.categoria
-    ? CATEGORIES.find((c) => c.value === params.categoria)?.label
-    : null
+  const categoryLabel = params.categoria ? CATEGORY_TITLES[params.categoria] ?? null : null
 
   const hasFilters = !!(
     params.pais || params.genero || params.marca || params.tipo ||

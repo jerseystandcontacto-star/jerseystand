@@ -16,8 +16,15 @@ function InstagramIcon({ className }: { className?: string }) {
 }
 
 import { useCartStore } from '@/store/cartStore'
-import { CATEGORIES } from '@/types'
 import { CartDrawer } from '@/components/cart/CartDrawer'
+
+const NAV_CATS = [
+  { href: '/productos?categoria=liga-mx',   label: 'Liga MX' },
+  { href: '/productos?categoria=seleccion', label: 'Selección Mexicana' },
+  { href: '/productos?categoria=europa',    label: 'Europa' },
+  { href: '/productos?categoria=retro',     label: 'Retro / Vintage' },
+  { href: '/productos?categoria=gear',      label: 'Gear Deportivo' },
+]
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -95,10 +102,10 @@ export function Navbar() {
                 Todos
               </Link>
             </li>
-            {CATEGORIES.map((cat) => (
-              <li key={cat.value}>
+            {NAV_CATS.map((cat) => (
+              <li key={cat.href}>
                 <Link
-                  href={`/productos?categoria=${cat.value}`}
+                  href={cat.href}
                   className="text-white/80 hover:text-[#c9a227] text-sm font-semibold uppercase transition-colors whitespace-nowrap"
                 >
                   {cat.label}
@@ -216,10 +223,10 @@ export function Navbar() {
                   Todos los productos
                 </Link>
               </li>
-              {CATEGORIES.map((cat) => (
-                <li key={cat.value}>
+              {NAV_CATS.map((cat) => (
+                <li key={cat.href}>
                   <Link
-                    href={`/productos?categoria=${cat.value}`}
+                    href={cat.href}
                     onClick={() => setMenuOpen(false)}
                     className="block px-6 py-3 text-white/80 hover:bg-white/5 hover:text-[#c9a227] font-semibold uppercase text-sm tracking-wide"
                   >

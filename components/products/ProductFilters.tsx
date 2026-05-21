@@ -48,7 +48,10 @@ export function ProductFilters() {
     [params, router]
   )
 
-  const clearAll = () => router.push('/productos')
+  const clearAll = () => {
+    const cat = params.get('categoria')
+    router.push(cat ? `/productos?categoria=${cat}` : '/productos')
+  }
 
   const activeKeys = Object.keys(BADGE_LABELS).filter((k) => params.has(k))
 

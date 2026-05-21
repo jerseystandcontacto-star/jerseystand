@@ -2,16 +2,37 @@ import { Resend } from 'resend'
 import type { Order } from '@/types'
 
 function getResend() {
-  return new Resend(process.env.RESEND_API_KEY || 'dummy')
+  const key = process.env.RESEND_API_KEY
+  if (!key || key === 'pendiente') {
+    console.error('[resend] RESEND_API_KEY no configurada o es "pendiente" — los emails NO se enviarán')
+  }
+  return new Resend(key || 'dummy')
 }
 
+// Hardcoded a onboarding@resend.dev hasta tener dominio verificado
 function getFrom() {
-  const email = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
-  return `Jersey Stand <${email}>`
+  return 'Jersey Stand <onboarding@resend.dev>'
 }
 
 function getAdminEmail() {
   return process.env.ADMIN_EMAIL || 'jerseystandcontacto@gmail.com'
+}
+
+async function sendEmail(type: string, opts: Parameters<Resend['emails']['send']>[0]) {
+  const resend = getResend()
+  console.log(`[resend:${type}] Enviando | from: ${opts.from} | to: ${opts.to} | key: ${process.env.RESEND_API_KEY ? process.env.RESEND_API_KEY.slice(0, 8) + '...' : 'NO DEFINIDA'}`)
+  try {
+    const result = await resend.emails.send(opts)
+    if (result.error) {
+      console.error(`[resend:${type}] Error de API:`, JSON.stringify(result.error))
+    } else {
+      console.log(`[resend:${type}] Enviado OK | id:`, result.data?.id)
+    }
+    return result
+  } catch (err) {
+    console.error(`[resend:${type}] Excepción:`, JSON.stringify(err, Object.getOwnPropertyNames(err)))
+    throw err
+  }
 }
 
 const HEADER = `
@@ -47,8 +68,7 @@ function wrap(body: string) {
 // 1. Bienvenida al registrarse
 export async function sendWelcomeEmail(email: string, name: string) {
   try {
-    const resend = getResend()
-    await resend.emails.send({
+    await sendEmail('welcome', {
       from: getFrom(),
       to: email,
       subject: '¡Bienvenido a Jersey Stand! 👕',
@@ -75,9 +95,8 @@ export async function sendWelcomeEmail(email: string, name: string) {
         </div>
       `),
     })
-    console.log('Email enviado: welcome a', email)
   } catch (err) {
-    console.error('[email] welcome error:', err)
+    console.error('[resend:welcome] error final:', err)
   }
 }
 
@@ -106,8 +125,7 @@ export async function sendOrderConfirmation(order: Order) {
     }
 
     const addr = order.shipping_address
-    const resend = getResend()
-    await resend.emails.send({
+    await sendEmail('order-confirmation', {
       from: getFrom(),
       to: order.customer_email,
       subject: `✅ Orden #${order.order_number} confirmada - Jersey Stand`,
@@ -159,9 +177,8 @@ export async function sendOrderConfirmation(order: Order) {
         </div>
       `),
     })
-    console.log('Email enviado: order-confirmation a', order.customer_email)
   } catch (err) {
-    console.error('[email] order-confirmation error:', err)
+    console.error('[resend:order-confirmation] error final:', err)
   }
 }
 
@@ -177,8 +194,7 @@ export async function sendAdminOrderNotification(order: Order) {
         .join('<br>') || ''
 
     const addr = order.shipping_address
-    const resend = getResend()
-    await resend.emails.send({
+    await sendEmail('admin-order', {
       from: getFrom(),
       to: getAdminEmail(),
       subject: `🛒 Nueva orden #${order.order_number} - $${order.total.toFixed(2)} MXN`,
@@ -205,17 +221,15 @@ export async function sendAdminOrderNotification(order: Order) {
         </div>
       `,
     })
-    console.log('Email enviado: admin-order-notification para orden', order.order_number)
   } catch (err) {
-    console.error('[email] admin-order-notification error:', err)
+    console.error('[resend:admin-order] error final:', err)
   }
 }
 
 // 4. Orden enviada (admin cambia status a "enviado")
 export async function sendShippingNotification(order: Order, trackingNumber: string) {
   try {
-    const resend = getResend()
-    await resend.emails.send({
+    await sendEmail('shipping', {
       from: getFrom(),
       to: order.customer_email,
       subject: `📦 Tu pedido #${order.order_number} está en camino`,
@@ -247,17 +261,15 @@ export async function sendShippingNotification(order: Order, trackingNumber: str
         </div>
       `),
     })
-    console.log('Email enviado: shipping-notification a', order.customer_email)
   } catch (err) {
-    console.error('[email] shipping-notification error:', err)
+    console.error('[resend:shipping] error final:', err)
   }
 }
 
 // 5. Confirmación de suscripción al newsletter
 export async function sendNewsletterConfirmation(email: string) {
   try {
-    const resend = getResend()
-    await resend.emails.send({
+    await sendEmail('newsletter', {
       from: getFrom(),
       to: email,
       subject: '¡Ya eres parte de Jersey Stand! 🎽',
@@ -282,9 +294,8 @@ export async function sendNewsletterConfirmation(email: string) {
         </div>
       `),
     })
-    console.log('Email enviado: newsletter-confirmation a', email)
   } catch (err) {
-    console.error('[email] newsletter-confirmation error:', err)
+    console.error('[resend:newsletter] error final:', err)
   }
 }
 
@@ -315,8 +326,7 @@ export async function sendAdminCompraNotification(compra: {
       )
       .join('')
 
-    const resend = getResend()
-    await resend.emails.send({
+    await sendEmail('admin-compra', {
       from: getFrom(),
       to: getAdminEmail(),
       subject: `👕 Cliente quiere vender un jersey - Jersey Stand`,
@@ -344,9 +354,8 @@ export async function sendAdminCompraNotification(compra: {
         </div>
       `,
     })
-    console.log('Email enviado: admin-compra-notification para', compra.customer_name)
   } catch (err) {
-    console.error('[email] admin-compra-notification error:', err)
+    console.error('[resend:admin-compra] error final:', err)
   }
 }
 
@@ -358,8 +367,7 @@ export async function sendQuoteConfirmation(quote: {
   quantity_range: string
 }) {
   try {
-    const resend = getResend()
-    await resend.emails.send({
+    await sendEmail('quote-confirmation', {
       from: getFrom(),
       to: quote.email,
       subject: '✅ Recibimos tu cotización - Jersey Stand',
@@ -381,9 +389,8 @@ export async function sendQuoteConfirmation(quote: {
         </div>
       `),
     })
-    console.log('Email enviado: quote-confirmation a', quote.email)
   } catch (err) {
-    console.error('[email] quote-confirmation error:', err)
+    console.error('[resend:quote-confirmation] error final:', err)
   }
 }
 
@@ -400,8 +407,7 @@ export async function sendAdminQuoteNotification(quote: {
   notes?: string | null
 }) {
   try {
-    const resend = getResend()
-    await resend.emails.send({
+    await sendEmail('admin-quote', {
       from: getFrom(),
       to: getAdminEmail(),
       subject: `🆕 Nueva cotización de ${quote.customer_name} - Jersey Stand`,
@@ -427,8 +433,7 @@ export async function sendAdminQuoteNotification(quote: {
         </div>
       `,
     })
-    console.log('Email enviado: admin-quote-notification para', quote.customer_name)
   } catch (err) {
-    console.error('[email] admin-quote-notification error:', err)
+    console.error('[resend:admin-quote] error final:', err)
   }
 }

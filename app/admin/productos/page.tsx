@@ -205,19 +205,26 @@ function ProductFormModal({
   onSave: () => void
 }) {
   const [formData, setFormData] = useState({
-    name:          product?.name          || '',
-    tipo_producto: product?.tipo_producto  || 'Jersey',
-    marca:         product?.marca         || '',
-    liga:          product?.liga          || '',
-    team:          product?.team          || '',
-    anio:          product?.anio          || '',
-    temporada:     product?.temporada     || '',
-    genero:        product?.genero        || '',
-    price:         product?.price?.toString()         || '',
-    compare_price: product?.compare_price?.toString() || '',
-    description:   product?.description   || '',
-    featured:      product?.featured      || false,
-    active:        product?.active        ?? true,
+    name:                 product?.name                || '',
+    tipo_producto:        product?.tipo_producto        || 'Jersey',
+    marca:                product?.marca               || '',
+    liga:                 product?.liga                || '',
+    team:                 product?.team                || '',
+    anio:                 product?.anio                || '',
+    temporada:            product?.temporada           || '',
+    genero:               product?.genero              || '',
+    price:                product?.price?.toString()         || '',
+    compare_price:        product?.compare_price?.toString() || '',
+    description:          product?.description         || '',
+    featured:             product?.featured            || false,
+    active:               product?.active              ?? true,
+    // Ficha Técnica
+    equipacion:           product?.equipacion          || '',
+    version:              product?.version             || '',
+    tipografia:           product?.tipografia          || '',
+    hecho_en:             product?.hecho_en            || '',
+    codigo_autenticidad:  product?.codigo_autenticidad || '',
+    condicion:            product?.condicion           || '',
   })
 
   const [variants, setVariants] = useState<Partial<ProductVariant>[]>(
@@ -245,9 +252,15 @@ function ProductFormModal({
     try {
       const payload = {
         ...formData,
-        price:         parseFloat(formData.price),
-        compare_price: formData.compare_price ? parseFloat(formData.compare_price) : null,
-        category:      ligaToCategory(formData.liga),
+        price:                parseFloat(formData.price),
+        compare_price:        formData.compare_price ? parseFloat(formData.compare_price) : null,
+        category:             ligaToCategory(formData.liga),
+        equipacion:           formData.equipacion          || null,
+        version:              formData.version             || null,
+        tipografia:           formData.tipografia          || null,
+        hecho_en:             formData.hecho_en            || null,
+        codigo_autenticidad:  formData.codigo_autenticidad || null,
+        condicion:            formData.condicion           || null,
         images,
         variants: variants.map((v) => ({
           size:  v.size  || 'M',
@@ -394,6 +407,76 @@ function ProductFormModal({
             placeholder="Detalles del jersey, material, características..."
           />
 
+          {/* Ficha Técnica */}
+          <div className="border border-gray-200 rounded-xl p-4 flex flex-col gap-4">
+            <p className="text-sm font-semibold text-[#111410]">Ficha Técnica</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Equipación"
+                value={formData.equipacion}
+                onChange={(e) => set('equipacion', e.target.value)}
+                options={[
+                  { value: '', label: 'Seleccionar' },
+                  { value: 'Local',            label: 'Local' },
+                  { value: 'Visitante',         label: 'Visitante' },
+                  { value: 'Tercero',           label: 'Tercero' },
+                  { value: 'Portero',           label: 'Portero' },
+                  { value: 'Edición Especial',  label: 'Edición Especial' },
+                  { value: 'Retro',             label: 'Retro' },
+                ]}
+              />
+              <Select
+                label="Versión"
+                value={formData.version}
+                onChange={(e) => set('version', e.target.value)}
+                options={[
+                  { value: '',           label: 'Seleccionar' },
+                  { value: 'Jugador',    label: 'Jugador' },
+                  { value: 'Aficionado', label: 'Aficionado' },
+                  { value: 'Auténtica',  label: 'Auténtica' },
+                  { value: 'Replica',    label: 'Replica' },
+                ]}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Tipografía"
+                value={formData.tipografia}
+                onChange={(e) => set('tipografia', e.target.value)}
+                placeholder="Ej. Nike, Adidas, Lexicon..."
+              />
+              <Input
+                label="Hecho en"
+                value={formData.hecho_en}
+                onChange={(e) => set('hecho_en', e.target.value)}
+                placeholder="Ej. México, Thailand, Indonesia..."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Código de autenticidad"
+                value={formData.codigo_autenticidad}
+                onChange={(e) => set('codigo_autenticidad', e.target.value)}
+                placeholder="Ej. ABC-123456"
+              />
+              <Select
+                label="Condición"
+                value={formData.condicion}
+                onChange={(e) => set('condicion', e.target.value)}
+                options={[
+                  { value: '',                     label: 'Seleccionar' },
+                  { value: 'Nuevo con etiquetas',  label: 'Nuevo con etiquetas' },
+                  { value: 'Nuevo sin etiquetas',  label: 'Nuevo sin etiquetas' },
+                  { value: 'Como nuevo',           label: 'Como nuevo' },
+                  { value: 'Buen estado',          label: 'Buen estado' },
+                ]}
+              />
+            </div>
+          </div>
+
           {/* Opciones */}
           <div className="flex gap-6">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -511,21 +594,27 @@ function parseSizes(raw: string): string[] {
 }
 
 interface ParsedProduct {
-  name:           string
-  team:           string
-  liga:           string
-  anio:           string
-  marca:          string
-  temporada:      string
-  tipo_producto:  string
-  genero:         string
-  price:          number
-  compare_price:  number | null
-  featured:       boolean
-  description:    string
-  category:       string
-  sizes:          string[]
-  stock_per_size: number
+  name:                string
+  team:                string
+  liga:                string
+  anio:                string
+  marca:               string
+  temporada:           string
+  tipo_producto:       string
+  genero:              string
+  price:               number
+  compare_price:       number | null
+  featured:            boolean
+  description:         string
+  category:            string
+  sizes:               string[]
+  stock_per_size:      number
+  equipacion:          string
+  version:             string
+  tipografia:          string
+  hecho_en:            string
+  codigo_autenticidad: string
+  condicion:           string
 }
 
 function parseExcelRow(raw: Record<string, unknown>): ParsedProduct | null {
@@ -554,20 +643,26 @@ function parseExcelRow(raw: Record<string, unknown>): ParsedProduct | null {
 
   return {
     name,
-    team:          String(row['Equipo'] ?? '').trim(),
+    team:                String(row['Equipo'] ?? '').trim(),
     liga,
-    anio:          String(row['Temporada / Año'] ?? '').trim(),
-    marca:         String(row['Marca'] ?? '').trim(),
-    temporada:     '',
-    tipo_producto: parseTipoProducto(String(row['Tipo'] ?? '').trim()),
-    genero:        String(row['Género'] ?? '').trim(),
-    price:         toNum(row['Precio (MXN)']) ?? 0,
-    compare_price: toNum(row['Precio original']),
-    featured:      dest === 'sí' || dest === 'si' || dest === 'true' || dest === '1',
-    description:   [desc, hist].filter(Boolean).join('\n\n'),
-    category:      deriveCategory(liga),
+    anio:                String(row['Temporada / Año'] ?? '').trim(),
+    marca:               String(row['Marca'] ?? '').trim(),
+    temporada:           '',
+    tipo_producto:       parseTipoProducto(String(row['Tipo'] ?? '').trim()),
+    genero:              String(row['Género'] ?? '').trim(),
+    price:               toNum(row['Precio (MXN)']) ?? 0,
+    compare_price:       toNum(row['Precio original']),
+    featured:            dest === 'sí' || dest === 'si' || dest === 'true' || dest === '1',
+    description:         [desc, hist].filter(Boolean).join('\n\n'),
+    category:            deriveCategory(liga),
     sizes,
-    stock_per_size: stockPerSize,
+    stock_per_size:      stockPerSize,
+    equipacion:          String(row['Equipación'] ?? '').trim(),
+    version:             String(row['Versión'] ?? '').trim(),
+    tipografia:          String(row['Tipografía'] ?? '').trim(),
+    hecho_en:            String(row['Hecho en'] ?? '').trim(),
+    codigo_autenticidad: String(row['Código de autenticidad'] ?? '').trim(),
+    condicion:           String(row['Condición'] ?? '').trim(),
   }
 }
 

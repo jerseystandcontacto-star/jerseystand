@@ -38,8 +38,14 @@ export interface Product {
   liga: string | null
   genero: string | null
   temporada: string | null
-  tipo_producto: string | null
-  pais: string | null
+  tipo_producto:        string | null
+  pais:                 string | null
+  equipacion:           string | null
+  version:              string | null
+  tipografia:           string | null
+  hecho_en:             string | null
+  codigo_autenticidad:  string | null
+  condicion:            string | null
   price: number
   compare_price: number | null
   images: string[]

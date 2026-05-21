@@ -233,7 +233,37 @@ export default function ProductPage() {
             )}
           </div>
 
-          {/* 11. Botón carrito */}
+          {/* 11. Ficha Técnica */}
+          {(() => {
+            const ficha: { label: string; value: string | null | undefined }[] = [
+              { label: 'Equipación',            value: product.equipacion },
+              { label: 'Versión',               value: product.version },
+              { label: 'Tipografía',            value: product.tipografia },
+              { label: 'Hecho en',              value: product.hecho_en },
+              { label: 'Código autenticidad',   value: product.codigo_autenticidad },
+              { label: 'Condición',             value: product.condicion },
+            ]
+            const rows = ficha.map((f) => ({ ...f, value: f.value || null }))
+            return (
+              <div className="rounded-xl overflow-hidden border border-[#2a2a2a]" style={{ background: '#1a1a1a' }}>
+                <p className="px-4 py-2.5 text-xs font-bold tracking-widest text-gray-400 uppercase border-b border-[#2a2a2a]">
+                  Ficha Técnica
+                </p>
+                <table className="w-full text-sm">
+                  <tbody>
+                    {rows.map(({ label, value }, i) => (
+                      <tr key={label} className={i % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#222222]'}>
+                        <td className="px-4 py-2.5 text-gray-500 w-1/2 font-medium">{label}</td>
+                        <td className="px-4 py-2.5 text-gray-200 font-semibold">{value ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })()}
+
+          {/* 12. Botón carrito */}
           <Button
             variant={addedToCart ? 'secondary' : 'primary'}
             size="lg"

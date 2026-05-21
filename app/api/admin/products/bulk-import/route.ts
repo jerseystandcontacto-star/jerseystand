@@ -3,21 +3,27 @@ import { createAdminClient, requireAdmin } from '@/lib/supabase/server'
 import { slugify } from '@/lib/utils'
 
 interface ImportItem {
-  name:           string
-  team:           string
-  liga:           string
-  anio:           string
-  marca:          string
-  temporada:      string
-  genero:         string
-  tipo_producto:  string
-  price:          number
-  compare_price:  number | null
-  featured:       boolean
-  description:    string
-  category:       string
-  sizes:          string[]
-  stock_per_size: number
+  name:                string
+  team:                string
+  liga:                string
+  anio:                string
+  marca:               string
+  temporada:           string
+  genero:              string
+  tipo_producto:       string
+  price:               number
+  compare_price:       number | null
+  featured:            boolean
+  description:         string
+  category:            string
+  sizes:               string[]
+  stock_per_size:      number
+  equipacion?:         string
+  version?:            string
+  tipografia?:         string
+  hecho_en?:           string
+  codigo_autenticidad?: string
+  condicion?:          string
 }
 
 export async function POST(req: NextRequest) {
@@ -64,12 +70,18 @@ export async function POST(req: NextRequest) {
           tipo_producto: item.tipo_producto || 'Jersey',
           price:         item.price         || 0,
           compare_price: item.compare_price || null,
-          featured:      item.featured      ?? false,
-          description:   item.description   || null,
-          category:      item.category      || 'gear',
-          images:        [],
-          tags:          [],
-          active:        true,
+          featured:             item.featured             ?? false,
+          description:          item.description          || null,
+          category:             item.category             || 'gear',
+          images:               [],
+          tags:                 [],
+          active:               true,
+          equipacion:           item.equipacion           || null,
+          version:              item.version              || null,
+          tipografia:           item.tipografia           || null,
+          hecho_en:             item.hecho_en             || null,
+          codigo_autenticidad:  item.codigo_autenticidad  || null,
+          condicion:            item.condicion            || null,
         })
         .select('id')
         .single()

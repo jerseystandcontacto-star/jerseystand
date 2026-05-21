@@ -58,8 +58,14 @@ export async function POST(req: NextRequest) {
     liga:          productData.liga           || null,
     genero:        productData.genero         || null,
     temporada:     productData.temporada      || null,
-    tipo_producto: productData.tipo_producto  || 'Jersey',
-    pais:          productData.pais           || null,
+    tipo_producto:        productData.tipo_producto       || 'Jersey',
+    pais:                 productData.pais                || null,
+    equipacion:           productData.equipacion          || null,
+    version:              productData.version             || null,
+    tipografia:           productData.tipografia          || null,
+    hecho_en:             productData.hecho_en            || null,
+    codigo_autenticidad:  productData.codigo_autenticidad || null,
+    condicion:            productData.condicion           || null,
   }
 
   console.log('[POST /api/admin/products] insertando:', insertData.name, '| slug:', slug)

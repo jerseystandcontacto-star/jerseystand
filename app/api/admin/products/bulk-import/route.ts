@@ -8,7 +8,6 @@ interface ImportItem {
   liga:                string
   anio:                string
   marca:               string
-  temporada:           string
   genero:              string
   tipo_producto:       string
   price:               number
@@ -65,7 +64,6 @@ export async function POST(req: NextRequest) {
           liga:          item.liga          || null,
           anio:          item.anio          || null,
           marca:         item.marca         || null,
-          temporada:     item.temporada     || null,
           genero:        item.genero        || null,
           tipo_producto: item.tipo_producto || 'Jersey',
           price:         item.price         || 0,

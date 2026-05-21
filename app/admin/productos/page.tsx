@@ -595,7 +595,6 @@ interface ParsedProduct {
   liga:                string
   anio:                string
   marca:               string
-  temporada:           string
   tipo_producto:       string
   genero:              string
   price:               number
@@ -643,7 +642,6 @@ function parseExcelRow(raw: Record<string, unknown>): ParsedProduct | null {
     liga,
     anio:                String(row['Temporada / Año'] ?? '').trim(),
     marca:               String(row['Marca'] ?? '').trim(),
-    temporada:           '',
     tipo_producto:       parseTipoProducto(String(row['Tipo'] ?? '').trim()),
     genero:              String(row['Género'] ?? '').trim(),
     price:               toNum(row['Precio (MXN)']) ?? 0,

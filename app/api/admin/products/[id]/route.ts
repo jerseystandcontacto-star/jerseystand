@@ -27,7 +27,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     anio:          raw.anio          ?? null,
     liga:          raw.liga          ?? null,
     genero:        raw.genero        ?? null,
-    temporada:     raw.temporada     ?? null,
     tipo_producto:        raw.tipo_producto       ?? 'Jersey',
     pais:                 raw.pais                ?? null,
     equipacion:           raw.equipacion          ?? null,

@@ -37,7 +37,6 @@ export interface Product {
   anio: string | null
   liga: string | null
   genero: string | null
-  temporada: string | null
   tipo_producto:        string | null
   pais:                 string | null
   equipacion:           string | null

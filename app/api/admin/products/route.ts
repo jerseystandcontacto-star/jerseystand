@@ -57,7 +57,6 @@ export async function POST(req: NextRequest) {
     anio:          productData.anio           || null,
     liga:          productData.liga           || null,
     genero:        productData.genero         || null,
-    temporada:     productData.temporada      || null,
     tipo_producto:        productData.tipo_producto       || 'Jersey',
     pais:                 productData.pais                || null,
     equipacion:           productData.equipacion          || null,

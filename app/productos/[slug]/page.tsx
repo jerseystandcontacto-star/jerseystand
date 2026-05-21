@@ -75,14 +75,17 @@ export default function ProductPage() {
 
   const hasImages = product.images.length > 0
 
-  // Campos de metadata del producto (solo mostrar si existen)
-  const meta: { label: string; value: string | null | undefined }[] = [
-    { label: 'Marca',     value: product.marca },
-    { label: 'Equipo',    value: product.team },
-    { label: 'Liga',      value: product.liga },
-    { label: 'Año',       value: product.anio },
-    { label: 'Temporada', value: product.temporada },
-    { label: 'Género',    value: product.genero },
+  const details: { label: string; value: string | null | undefined }[] = [
+    { label: 'Equipo',                  value: product.team },
+    { label: 'Marca',                   value: product.marca },
+    { label: 'País',                    value: product.pais },
+    { label: 'Año',                     value: product.anio },
+    { label: 'Equipación',              value: product.equipacion },
+    { label: 'Tipografía',              value: product.tipografia },
+    { label: 'Género',                  value: product.genero },
+    { label: 'Hecho en',                value: product.hecho_en },
+    { label: 'Código de autenticidad',  value: product.codigo_autenticidad },
+    { label: 'Condición',               value: product.condicion },
   ]
 
   return (
@@ -159,16 +162,14 @@ export default function ProductPage() {
             {product.name}
           </h1>
 
-          {/* 2–7. Metadata */}
+          {/* Detalles del producto */}
           <div className="flex flex-col gap-1.5">
-            {meta.map(({ label, value }) =>
-              value ? (
-                <div key={label} className="flex items-center gap-2 text-sm">
-                  <span className="w-20 text-gray-400 shrink-0">{label}</span>
-                  <span className="font-semibold text-[#111410]">{value}</span>
-                </div>
-              ) : null
-            )}
+            {details.map(({ label, value }) => (
+              <div key={label} className="flex items-center gap-2 text-sm">
+                <span className="w-32 text-gray-400 shrink-0">{label}</span>
+                <span className="font-semibold text-[#111410]">{value || '—'}</span>
+              </div>
+            ))}
           </div>
 
           {/* 8–9. Precios */}
@@ -233,37 +234,7 @@ export default function ProductPage() {
             )}
           </div>
 
-          {/* 11. Ficha Técnica */}
-          {(() => {
-            const ficha: { label: string; value: string | null | undefined }[] = [
-              { label: 'Equipación',            value: product.equipacion },
-              { label: 'Versión',               value: product.version },
-              { label: 'Tipografía',            value: product.tipografia },
-              { label: 'Hecho en',              value: product.hecho_en },
-              { label: 'Código autenticidad',   value: product.codigo_autenticidad },
-              { label: 'Condición',             value: product.condicion },
-            ]
-            const rows = ficha.map((f) => ({ ...f, value: f.value || null }))
-            return (
-              <div className="rounded-xl overflow-hidden border border-[#2a2a2a]" style={{ background: '#1a1a1a' }}>
-                <p className="px-4 py-2.5 text-xs font-bold tracking-widest text-gray-400 uppercase border-b border-[#2a2a2a]">
-                  Ficha Técnica
-                </p>
-                <table className="w-full text-sm">
-                  <tbody>
-                    {rows.map(({ label, value }, i) => (
-                      <tr key={label} className={i % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#222222]'}>
-                        <td className="px-4 py-2.5 text-gray-500 w-1/2 font-medium">{label}</td>
-                        <td className="px-4 py-2.5 text-gray-200 font-semibold">{value ?? '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
-          })()}
-
-          {/* 12. Botón carrito */}
+          {/* Botón carrito */}
           <Button
             variant={addedToCart ? 'secondary' : 'primary'}
             size="lg"
@@ -281,7 +252,7 @@ export default function ProductPage() {
               : 'AGREGAR AL CARRITO'}
           </Button>
 
-          {/* 12. Descripción */}
+          {/* Descripción */}
           {product.description && (
             <div>
               <h2 className="font-semibold text-[#111410] mb-2">Descripción</h2>

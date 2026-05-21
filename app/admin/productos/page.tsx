@@ -9,15 +9,14 @@ import { Badge } from '@/components/ui/Badge'
 import { ImageUploader } from '@/components/admin/ImageUploader'
 import { formatPrice } from '@/lib/utils'
 import type { Product, ProductVariant } from '@/types'
-import { SIZES, LEAGUES, GENDERS, SEASON_TYPES, TIPOS_PRODUCTO } from '@/types'
+import { SIZES, BRANDS, GENDERS, TIPOS_PRODUCTO } from '@/types'
 
-// Derive legacy category from liga for backward compat with the public catalog
-function ligaToCategory(liga: string) {
-  if (liga === 'Liga MX') return 'liga-mx'
-  if (liga === 'Selección Mexicana' || liga === 'Selección Internacional') return 'seleccion-mexicana'
-  if (['Premier League', 'La Liga', 'Serie A', 'Bundesliga', 'Ligue 1', 'Champions League'].includes(liga))
-    return 'europa'
-  if (liga === 'Retro' || liga === 'Vintage') return 'retro-vintage'
+function paisToCategory(pais: string): string {
+  const p = pais.toLowerCase().trim()
+  if (!p || p.includes('méx') || p.includes('mex')) return 'liga-mx'
+  const europa = ['españa', 'spain', 'england', 'inglat', 'germany', 'aleman', 'france', 'franc', 'italy', 'ital', 'portug', 'nether', 'belgi']
+  if (europa.some((c) => p.includes(c))) return 'europa'
+  if (p.includes('selecci')) return 'seleccion-mexicana'
   return 'liga-mx'
 }
 
@@ -98,7 +97,7 @@ export default function AdminProductosPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Marca</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Liga</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">País</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Año</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Equipación</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Género</th>
@@ -126,9 +125,9 @@ export default function AdminProductosPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{product.tipo_producto || '—'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{product.marca || '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{product.liga || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{product.pais || '—'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{product.anio || '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{product.temporada || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{product.equipacion || '—'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{product.genero || '—'}</td>
                   <td className="px-4 py-3 font-bold text-sm text-[#1a5c2e]">{formatPrice(product.price)}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{totalStock(product)}</td>
@@ -189,11 +188,17 @@ export default function AdminProductosPage() {
 
 // ─── Form Modal ───────────────────────────────────────────────────────────────
 
+const genderOptions = GENDERS.map((g) => ({ value: g, label: g }))
+const sizeOptions   = SIZES.filter((s) => s !== 'XS').map((s) => ({ value: s, label: s }))
+const brandOptions  = [{ value: '', label: 'Seleccionar marca' }, ...BRANDS.map((b) => ({ value: b, label: b }))]
 
-const leagueOptions  = LEAGUES.map((l) => ({ value: l, label: l }))
-const genderOptions  = GENDERS.map((g) => ({ value: g, label: g }))
-const seasonOptions  = SEASON_TYPES.map((s) => ({ value: s, label: s }))
-const sizeOptions    = SIZES.filter((s) => s !== 'XS').map((s) => ({ value: s, label: s }))
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <p className="text-xs font-bold tracking-widest uppercase text-gray-400 pb-2 border-b border-gray-100 -mb-1">
+      {label}
+    </p>
+  )
+}
 
 function ProductFormModal({
   product,
@@ -205,26 +210,24 @@ function ProductFormModal({
   onSave: () => void
 }) {
   const [formData, setFormData] = useState({
-    name:                 product?.name                || '',
-    tipo_producto:        product?.tipo_producto        || 'Jersey',
-    marca:                product?.marca               || '',
-    liga:                 product?.liga                || '',
-    team:                 product?.team                || '',
-    anio:                 product?.anio                || '',
-    temporada:            product?.temporada           || '',
-    genero:               product?.genero              || '',
-    price:                product?.price?.toString()         || '',
-    compare_price:        product?.compare_price?.toString() || '',
-    description:          product?.description         || '',
-    featured:             product?.featured            || false,
-    active:               product?.active              ?? true,
-    // Ficha Técnica
-    equipacion:           product?.equipacion          || '',
-    version:              product?.version             || '',
-    tipografia:           product?.tipografia          || '',
-    hecho_en:             product?.hecho_en            || '',
-    codigo_autenticidad:  product?.codigo_autenticidad || '',
-    condicion:            product?.condicion           || '',
+    name:                product?.name                || '',
+    tipo_producto:       product?.tipo_producto       || 'Jersey',
+    marca:               product?.marca               || '',
+    pais:                product?.pais                || '',
+    team:                product?.team                || '',
+    anio:                product?.anio                || '',
+    genero:              product?.genero              || '',
+    price:               product?.price?.toString()         || '',
+    compare_price:       product?.compare_price?.toString() || '',
+    description:         product?.description         || '',
+    featured:            product?.featured            || false,
+    active:              product?.active              ?? true,
+    equipacion:          product?.equipacion          || '',
+    version:             product?.version             || '',
+    tipografia:          product?.tipografia          || '',
+    hecho_en:            product?.hecho_en            || '',
+    codigo_autenticidad: product?.codigo_autenticidad || '',
+    condicion:           product?.condicion           || '',
   })
 
   const [variants, setVariants] = useState<Partial<ProductVariant>[]>(
@@ -252,15 +255,16 @@ function ProductFormModal({
     try {
       const payload = {
         ...formData,
-        price:                parseFloat(formData.price),
-        compare_price:        formData.compare_price ? parseFloat(formData.compare_price) : null,
-        category:             ligaToCategory(formData.liga),
-        equipacion:           formData.equipacion          || null,
-        version:              formData.version             || null,
-        tipografia:           formData.tipografia          || null,
-        hecho_en:             formData.hecho_en            || null,
-        codigo_autenticidad:  formData.codigo_autenticidad || null,
-        condicion:            formData.condicion           || null,
+        price:               parseFloat(formData.price),
+        compare_price:       formData.compare_price ? parseFloat(formData.compare_price) : null,
+        category:            paisToCategory(formData.pais),
+        pais:                formData.pais                || null,
+        equipacion:          formData.equipacion          || null,
+        version:             formData.version             || null,
+        tipografia:          formData.tipografia          || null,
+        hecho_en:            formData.hecho_en            || null,
+        codigo_autenticidad: formData.codigo_autenticidad || null,
+        condicion:           formData.condicion           || null,
         images,
         variants: variants.map((v) => ({
           size:  v.size  || 'M',
@@ -305,14 +309,16 @@ function ProductFormModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[80vh]">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm font-medium">
               {error}
             </div>
           )}
 
-          {/* Nombre */}
+          {/* ── 1. Información del producto ── */}
+          <SectionHeader label="Información del producto" />
+
           <Input
             label="Nombre del producto"
             value={formData.name}
@@ -321,31 +327,6 @@ function ProductFormModal({
             placeholder="Ej. Jersey América Local 2024-25"
           />
 
-          {/* Marca + Liga */}
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Marca"
-              value={formData.marca}
-              onChange={(e) => set('marca', e.target.value)}
-              placeholder="Ej. Nike, Adidas, Puma..."
-            />
-            <Select
-              label="Liga"
-              value={formData.liga}
-              onChange={(e) => set('liga', e.target.value)}
-              options={[{ value: '', label: 'Seleccionar liga' }, ...leagueOptions]}
-            />
-          </div>
-
-          {/* Tipo de producto */}
-          <Select
-            label="Tipo de producto"
-            value={formData.tipo_producto}
-            onChange={(e) => set('tipo_producto', e.target.value)}
-            options={TIPOS_PRODUCTO.map((t) => ({ value: t, label: t }))}
-          />
-
-          {/* Equipo + Año */}
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Equipo"
@@ -355,6 +336,21 @@ function ProductFormModal({
               required
             />
             <Input
+              label="País"
+              value={formData.pais}
+              onChange={(e) => set('pais', e.target.value)}
+              placeholder="Ej. México, España, England..."
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Marca"
+              value={formData.marca}
+              onChange={(e) => set('marca', e.target.value)}
+              options={brandOptions}
+            />
+            <Input
               label="Año"
               value={formData.anio}
               onChange={(e) => set('anio', e.target.value)}
@@ -362,13 +358,21 @@ function ProductFormModal({
             />
           </div>
 
-          {/* Temporada + Género */}
           <div className="grid grid-cols-2 gap-4">
             <Select
               label="Equipación"
-              value={formData.temporada}
-              onChange={(e) => set('temporada', e.target.value)}
-              options={[{ value: '', label: 'Seleccionar temporada' }, ...seasonOptions]}
+              value={formData.equipacion}
+              onChange={(e) => set('equipacion', e.target.value)}
+              options={[
+                { value: '',                 label: 'Seleccionar' },
+                { value: 'Local',            label: 'Local' },
+                { value: 'Visitante',        label: 'Visitante' },
+                { value: 'Tercero',          label: 'Tercero' },
+                { value: 'Portero',          label: 'Portero' },
+                { value: 'Edición Especial', label: 'Edición Especial' },
+                { value: 'Retro',            label: 'Retro' },
+                { value: 'N/A',              label: 'N/A' },
+              ]}
             />
             <Select
               label="Género"
@@ -378,106 +382,13 @@ function ProductFormModal({
             />
           </div>
 
-          {/* Precio */}
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Precio (MXN)"
-              type="number"
-              step="0.01"
-              value={formData.price}
-              onChange={(e) => set('price', e.target.value)}
-              required
-            />
-            <Input
-              label="Precio anterior (opcional)"
-              type="number"
-              step="0.01"
-              value={formData.compare_price}
-              onChange={(e) => set('compare_price', e.target.value)}
-              placeholder="Precio tachado"
-            />
-          </div>
-
-          {/* Descripción */}
-          <Textarea
-            label="Descripción"
-            value={formData.description}
-            onChange={(e) => set('description', e.target.value)}
-            rows={3}
-            placeholder="Detalles del jersey, material, características..."
+          <Select
+            label="Tipo de producto"
+            value={formData.tipo_producto}
+            onChange={(e) => set('tipo_producto', e.target.value)}
+            options={TIPOS_PRODUCTO.map((t) => ({ value: t, label: t }))}
           />
 
-          {/* Ficha Técnica */}
-          <div className="border border-gray-200 rounded-xl p-4 flex flex-col gap-4">
-            <p className="text-sm font-semibold text-[#111410]">Ficha Técnica</p>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Select
-                label="Equipación"
-                value={formData.equipacion}
-                onChange={(e) => set('equipacion', e.target.value)}
-                options={[
-                  { value: '', label: 'Seleccionar' },
-                  { value: 'Local',            label: 'Local' },
-                  { value: 'Visitante',         label: 'Visitante' },
-                  { value: 'Tercero',           label: 'Tercero' },
-                  { value: 'Portero',           label: 'Portero' },
-                  { value: 'Edición Especial',  label: 'Edición Especial' },
-                  { value: 'Retro',             label: 'Retro' },
-                ]}
-              />
-              <Select
-                label="Versión"
-                value={formData.version}
-                onChange={(e) => set('version', e.target.value)}
-                options={[
-                  { value: '',           label: 'Seleccionar' },
-                  { value: 'Jugador',    label: 'Jugador' },
-                  { value: 'Aficionado', label: 'Aficionado' },
-                  { value: 'Auténtica',  label: 'Auténtica' },
-                  { value: 'Replica',    label: 'Replica' },
-                ]}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Tipografía"
-                value={formData.tipografia}
-                onChange={(e) => set('tipografia', e.target.value)}
-                placeholder="Ej. Nike, Adidas, Lexicon..."
-              />
-              <Input
-                label="Hecho en"
-                value={formData.hecho_en}
-                onChange={(e) => set('hecho_en', e.target.value)}
-                placeholder="Ej. México, Thailand, Indonesia..."
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Código de autenticidad"
-                value={formData.codigo_autenticidad}
-                onChange={(e) => set('codigo_autenticidad', e.target.value)}
-                placeholder="Ej. ABC-123456"
-              />
-              <Select
-                label="Condición"
-                value={formData.condicion}
-                onChange={(e) => set('condicion', e.target.value)}
-                options={[
-                  { value: '',                     label: 'Seleccionar' },
-                  { value: 'Nuevo con etiquetas',  label: 'Nuevo con etiquetas' },
-                  { value: 'Nuevo sin etiquetas',  label: 'Nuevo sin etiquetas' },
-                  { value: 'Como nuevo',           label: 'Como nuevo' },
-                  { value: 'Buen estado',          label: 'Buen estado' },
-                ]}
-              />
-            </div>
-          </div>
-
-          {/* Opciones */}
           <div className="flex gap-6">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -499,19 +410,104 @@ function ProductFormModal({
             </label>
           </div>
 
-          {/* Imágenes */}
+          {/* ── 2. Detalles de autenticidad ── */}
+          <SectionHeader label="Detalles de autenticidad" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Tipografía"
+              value={formData.tipografia}
+              onChange={(e) => set('tipografia', e.target.value)}
+              options={[
+                { value: '',    label: 'Seleccionar' },
+                { value: 'Sí', label: 'Sí' },
+                { value: 'No', label: 'No' },
+              ]}
+            />
+            <Select
+              label="Versión"
+              value={formData.version}
+              onChange={(e) => set('version', e.target.value)}
+              options={[
+                { value: '',           label: 'Seleccionar' },
+                { value: 'Aficionado', label: 'Aficionado' },
+                { value: 'Jugador',    label: 'Jugador' },
+                { value: 'Auténtico',  label: 'Auténtico' },
+                { value: 'N/A',        label: 'N/A' },
+              ]}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Hecho en"
+              value={formData.hecho_en}
+              onChange={(e) => set('hecho_en', e.target.value)}
+              placeholder="Ej. México, Thailand, Indonesia..."
+            />
+            <Input
+              label="Código de autenticidad"
+              value={formData.codigo_autenticidad}
+              onChange={(e) => set('codigo_autenticidad', e.target.value)}
+              placeholder="Ej. ABC-123456"
+            />
+          </div>
+
+          <Textarea
+            label="Condición"
+            value={formData.condicion}
+            onChange={(e) => set('condicion', e.target.value)}
+            rows={2}
+            placeholder="Ej. Nuevo con etiquetas, sin uso..."
+          />
+
+          {/* ── 3. Precio ── */}
+          <SectionHeader label="Precio" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Precio (MXN)"
+              type="number"
+              step="0.01"
+              value={formData.price}
+              onChange={(e) => set('price', e.target.value)}
+              required
+            />
+            <Input
+              label="Precio anterior (tachado)"
+              type="number"
+              step="0.01"
+              value={formData.compare_price}
+              onChange={(e) => set('compare_price', e.target.value)}
+              placeholder="Opcional"
+            />
+          </div>
+
+          {/* ── 4. Descripción ── */}
+          <SectionHeader label="Descripción" />
+
+          <Textarea
+            label=""
+            value={formData.description}
+            onChange={(e) => set('description', e.target.value)}
+            rows={3}
+            placeholder="Detalles del jersey, material, características..."
+          />
+
+          {/* ── 5. Imágenes ── */}
+          <SectionHeader label="Imágenes" />
+
           <div>
-            <p className="text-sm font-semibold text-[#111410] mb-2">
-              Fotos{' '}
-              <span className="font-normal text-gray-400">(arrastra para reordenar — la primera es la portada)</span>
-            </p>
+            <p className="text-xs text-gray-400 mb-2">Arrastra para reordenar — la primera es la portada</p>
             <ImageUploader images={images} onChange={setImages} />
           </div>
 
-          {/* Variantes — solo talla y stock */}
+          {/* ── 6. Variantes y stock ── */}
+          <SectionHeader label="Variantes y stock" />
+
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-semibold text-[#111410]">Stock por talla</p>
+              <p className="text-sm text-gray-500">Stock por talla</p>
               <button
                 type="button"
                 onClick={addVariant}

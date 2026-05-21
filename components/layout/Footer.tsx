@@ -126,6 +126,16 @@ export function Footer() {
                 Mis pedidos
               </Link>
             </li>
+            <li>
+              <Link href="/privacidad" className="text-sm hover:text-[#c9a227] transition-colors">
+                Política de Privacidad
+              </Link>
+            </li>
+            <li>
+              <Link href="/terminos" className="text-sm hover:text-[#c9a227] transition-colors">
+                Términos y Condiciones
+              </Link>
+            </li>
           </ul>
         </div>
 

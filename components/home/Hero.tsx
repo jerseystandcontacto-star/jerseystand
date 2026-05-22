@@ -71,7 +71,7 @@ export function Hero() {
             </div>
             <div className="auth-badge bg-white/10 border-white/20 text-white/80">
               <Star className="w-4 h-4 text-[#c9a227]" />
-              +500 clientes felices
+              Envío a todo México
             </div>
           </div>
         </div>
@@ -86,7 +86,7 @@ export function Hero() {
             <div className="relative z-10 w-full h-full rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
               <div className="text-center">
                 <p className="font-display text-6xl text-[#c9a227] mb-2">JS</p>
-                <p className="text-white/50 text-sm">jerseystand.com</p>
+                <p className="text-white/50 text-sm">jerseystand.shop</p>
                 <div className="mt-4 flex justify-center gap-2">
                   {['Liga MX', 'Europa', 'Retro'].map((tag) => (
                     <span

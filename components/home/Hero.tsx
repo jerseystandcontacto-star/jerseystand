@@ -82,22 +82,13 @@ export function Hero() {
             {/* Círculo decorativo */}
             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#1a5c2e]/40 to-[#c9a227]/20 blur-3xl" />
 
-            {/* Placeholder visual */}
-            <div className="relative z-10 w-full h-full rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <div className="text-center">
-                <p className="font-display text-6xl text-[#c9a227] mb-2">JS</p>
-                <p className="text-white/50 text-sm">jerseystand.shop</p>
-                <div className="mt-4 flex justify-center gap-2">
-                  {['Liga MX', 'Europa', 'Retro'].map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-xs bg-white/10 px-2 py-1 rounded-full text-white/60"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            {/* Foto de producto */}
+            <div className="relative z-10 w-full h-full rounded-2xl overflow-hidden shadow-2xl">
+              <img
+                src="/stand.JPG"
+                alt="Jersey Stand"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
             </div>
           </div>
         </div>

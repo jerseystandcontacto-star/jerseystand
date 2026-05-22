@@ -85,7 +85,7 @@ export function Hero() {
             {/* Foto de producto */}
             <div className="relative z-10 w-full h-full rounded-2xl overflow-hidden shadow-2xl">
               <img
-                src="/stand.JPG"
+                src="/stand.jpg"
                 alt="Jersey Stand"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />

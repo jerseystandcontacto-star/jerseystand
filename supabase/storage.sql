@@ -43,8 +43,8 @@ create policy "Imágenes públicas de productos" on storage.objects
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
-  'jersey-compras',
-  'jersey-compras',
+  'jersey-compras-fotos',
+  'jersey-compras-fotos',
   true,
   5242880,
   array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']
@@ -53,12 +53,12 @@ on conflict (id) do nothing;
 
 -- Cualquiera puede subir fotos (clientes enviando su jersey)
 create policy "Clientes suben fotos de compra" on storage.objects
-  for insert with check (bucket_id = 'jersey-compras');
+  for insert with check (bucket_id = 'jersey-compras-fotos');
 
 -- Solo admins pueden eliminar
 create policy "Admin elimina fotos de compra" on storage.objects
   for delete using (
-    bucket_id = 'jersey-compras'
+    bucket_id = 'jersey-compras-fotos'
     and exists (
       select 1 from public.admin_users
       where email = auth.jwt() ->> 'email'
@@ -67,4 +67,4 @@ create policy "Admin elimina fotos de compra" on storage.objects
 
 -- Lectura pública
 create policy "Fotos de compra públicas" on storage.objects
-  for select using (bucket_id = 'jersey-compras');
+  for select using (bucket_id = 'jersey-compras-fotos');

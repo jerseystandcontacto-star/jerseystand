@@ -1,13 +1,19 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import Image from 'next/image'
-import { Upload, X, CheckCircle, Star } from 'lucide-react'
+import { Upload, X, CheckCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
 import { JERSEY_CONDITIONS } from '@/types'
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL']
+const MIN_PHOTOS = 2
+const MAX_PHOTOS = 6
+
+interface PhotoItem {
+  file: File
+  preview: string
+}
 
 export default function VendoMiJerseyPage() {
   const [form, setForm] = useState({
@@ -21,7 +27,7 @@ export default function VendoMiJerseyPage() {
     asking_price: '',
     description: '',
   })
-  const [photos, setPhotos] = useState<string[]>([])
+  const [photos, setPhotos] = useState<PhotoItem[]>([])
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -31,49 +37,70 @@ export default function VendoMiJerseyPage() {
   const set = (field: string, value: string) =>
     setForm((f) => ({ ...f, [field]: value }))
 
-  const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
-    setUploading(true)
-    for (const file of files) {
-      const fd = new FormData()
-      fd.append('file', file)
-      const res = await fetch('/api/compras/fotos', { method: 'POST', body: fd })
-      if (res.ok) {
-        const data = await res.json()
-        setPhotos((p) => [...p, data.url])
-      }
-    }
-    setUploading(false)
+
+    setPhotos((prev) => {
+      const remaining = MAX_PHOTOS - prev.length
+      const toAdd = files.slice(0, remaining).map((file) => ({
+        file,
+        preview: URL.createObjectURL(file),
+      }))
+      return [...prev, ...toAdd]
+    })
+
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const removePhoto = (idx: number) =>
-    setPhotos((p) => p.filter((_, i) => i !== idx))
+  const removePhoto = (idx: number) => {
+    setPhotos((prev) => {
+      URL.revokeObjectURL(prev[idx].preview)
+      return prev.filter((_, i) => i !== idx)
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    if (photos.length < 2) {
-      setError('Sube al menos 2 fotos del jersey.')
+    if (photos.length < MIN_PHOTOS) {
+      setError(`Sube al menos ${MIN_PHOTOS} fotos del jersey.`)
       return
     }
 
     setLoading(true)
+    setUploading(true)
+
     try {
+      const uploadedUrls: string[] = []
+      for (const photo of photos) {
+        const fd = new FormData()
+        fd.append('file', photo.file)
+        const res = await fetch('/api/compras/fotos', { method: 'POST', body: fd })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error || 'Error al subir una foto. Intenta de nuevo.')
+        }
+        const data = await res.json()
+        uploadedUrls.push(data.url)
+      }
+
+      setUploading(false)
+
       const res = await fetch('/api/compras', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, asking_price: parseFloat(form.asking_price), photos }),
+        body: JSON.stringify({ ...form, asking_price: parseFloat(form.asking_price), photos: uploadedUrls }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error al enviar la solicitud'); return }
       setSuccess(true)
-    } catch {
-      setError('Error de red. Intenta de nuevo.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error de red. Intenta de nuevo.')
     } finally {
       setLoading(false)
+      setUploading(false)
     }
   }
 
@@ -85,12 +112,22 @@ export default function VendoMiJerseyPage() {
         <p className="text-gray-600 mb-6">
           Revisaremos tu jersey y te contactaremos en menos de 24 horas con una oferta.
         </p>
-        <Button variant="primary" onClick={() => { setSuccess(false); setForm({ customer_name: '', email: '', whatsapp: '', team: '', size: '', season: '', condition: '', asking_price: '', description: '' }); setPhotos([]) }}>
+        <Button
+          variant="primary"
+          onClick={() => {
+            setSuccess(false)
+            setForm({ customer_name: '', email: '', whatsapp: '', team: '', size: '', season: '', condition: '', asking_price: '', description: '' })
+            photos.forEach((p) => URL.revokeObjectURL(p.preview))
+            setPhotos([])
+          }}
+        >
           Enviar otra solicitud
         </Button>
       </div>
     )
   }
+
+  const atMax = photos.length >= MAX_PHOTOS
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
@@ -243,16 +280,18 @@ export default function VendoMiJerseyPage() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h2 className="font-semibold text-[#111410]">Fotos del jersey</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Mínimo 2 fotos • JPG, PNG o WebP • Máx. 5 MB c/u</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Mínimo {MIN_PHOTOS} • Máximo {MAX_PHOTOS} fotos • JPG, PNG o WebP • Máx. 5 MB c/u
+              </p>
             </div>
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              disabled={uploading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed border-[#1a5c2e] text-[#1a5c2e] text-sm font-semibold hover:bg-[#f0faf3] transition-colors disabled:opacity-50"
+              disabled={atMax}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-dashed border-[#1a5c2e] text-[#1a5c2e] text-sm font-semibold hover:bg-[#f0faf3] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Upload className="w-4 h-4" />
-              {uploading ? 'Subiendo...' : 'Subir fotos'}
+              {atMax ? `Máx. ${MAX_PHOTOS} fotos` : 'Agregar fotos'}
             </button>
             <input
               ref={fileRef}
@@ -265,31 +304,51 @@ export default function VendoMiJerseyPage() {
           </div>
 
           {photos.length > 0 ? (
-            <div className="grid grid-cols-4 gap-2">
-              {photos.map((url, i) => (
-                <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group">
-                  <Image src={url} alt={`Foto ${i + 1}`} fill className="object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removePhoto(i)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {photos.map((photo, i) => (
+                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo.preview}
+                      alt={`Foto ${i + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(i)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <div className="absolute bottom-1 left-1 bg-black/50 text-white text-[10px] rounded px-1">
+                      {i + 1}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                {photos.length}/{MAX_PHOTOS} fotos · Pasa el cursor sobre una para eliminarla
+              </p>
+            </>
           ) : (
             <div
               onClick={() => fileRef.current?.click()}
               className="border-2 border-dashed border-gray-200 rounded-xl py-10 text-center text-gray-400 cursor-pointer hover:border-[#1a5c2e] hover:text-[#1a5c2e] transition-colors"
             >
               <Upload className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">Haz clic para subir fotos</p>
+              <p className="text-sm">Haz clic para agregar fotos</p>
               <p className="text-xs mt-1">Frente, reverso y etiquetas</p>
             </div>
           )}
         </div>
+
+        {uploading && (
+          <div className="flex items-center gap-2 text-sm text-[#1a5c2e] font-medium">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Subiendo fotos a Supabase...
+          </div>
+        )}
 
         <Button type="submit" variant="primary" size="lg" loading={loading} className="font-display text-lg tracking-wider">
           ENVIAR SOLICITUD

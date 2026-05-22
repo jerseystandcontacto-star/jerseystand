@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/server'
 
 export const PRODUCTS_BUCKET = 'product-images'
-export const COMPRAS_BUCKET  = 'jersey-compras'
+export const COMPRAS_BUCKET  = 'jersey-compras-fotos'
 
 export async function uploadToStorage(
   buffer: Buffer,

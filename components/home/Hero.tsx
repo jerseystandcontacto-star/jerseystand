@@ -83,11 +83,22 @@ export function Hero() {
             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#1a5c2e]/40 to-[#c9a227]/20 blur-3xl" />
 
             {/* Foto de producto */}
-            <div className="relative z-10 w-full h-full rounded-2xl overflow-hidden shadow-2xl">
+            <div style={{
+              width: '400px',
+              height: '500px',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.5)'
+            }}>
               <img
                 src="/stand.jpg"
                 alt="Jersey Stand"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block'
+                }}
               />
             </div>
           </div>

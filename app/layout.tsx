@@ -30,6 +30,10 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     site: '@jerseystandcontacto',
   },
+  icons: {
+    icon: '/stand.jpg',
+    apple: '/stand.jpg',
+  },
   robots: {
     index: true,
     follow: true,

@@ -88,7 +88,8 @@ export function Hero() {
               height: '500px',
               borderRadius: '16px',
               overflow: 'hidden',
-              boxShadow: '0 25px 50px rgba(0,0,0,0.5)'
+              boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+              background: 'red'
             }}>
               <img
                 src="/stand.jpg"

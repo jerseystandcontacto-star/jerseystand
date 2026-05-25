@@ -67,9 +67,6 @@ export default async function HomePage() {
 
   return (
     <>
-      <div style={{background:'red', color:'white', fontSize:'40px', padding:'20px', zIndex:9999, position:'fixed', top:0, left:0}}>
-        TEST DEPLOY OK
-      </div>
       <Hero />
       <CategorySection />
 

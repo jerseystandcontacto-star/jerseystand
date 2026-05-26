@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     site: '@jerseystandcontacto',
   },
   icons: {
-    icon: '/stand.jpg',
-    apple: '/stand.jpg',
+    icon: '/logo.jpg',
+    apple: '/logo.jpg',
   },
   robots: {
     index: true,

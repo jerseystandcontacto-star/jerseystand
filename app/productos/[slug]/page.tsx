@@ -14,11 +14,13 @@ import { SIZES } from '@/types'
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>()
-  const [product, setProduct]         = useState<Product | null>(null)
-  const [loading, setLoading]         = useState(true)
+  const [product, setProduct]           = useState<Product | null>(null)
+  const [loading, setLoading]           = useState(true)
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
-  const [addedToCart, setAddedToCart] = useState(false)
+  const [addedToCart, setAddedToCart]   = useState(false)
+  // stock efectivo: stock_real - reservas_activas_pendientes
+  const [effectiveStock, setEffectiveStock] = useState<Record<string, number>>({})
   const { addItem } = useCartStore()
 
   useEffect(() => {
@@ -32,6 +34,22 @@ export default function ProductPage() {
         .single()
       if (error) console.error('[producto] fetch error:', error.message)
       setProduct(data as Product)
+
+      // Calcular stock real = stock_bd - reservas_activas_pendientes
+      const variantIds: string[] = (data as Product)?.variants?.map((v) => v.id) ?? []
+      if (variantIds.length > 0) {
+        const { data: stockRows, error: stockErr } = await supabase.rpc('get_effective_stocks', {
+          p_variant_ids: variantIds,
+        })
+        if (stockErr) {
+          console.error('[producto] get_effective_stocks error:', stockErr.message)
+        } else {
+          const map: Record<string, number> = {}
+          for (const row of stockRows ?? []) map[row.variant_id] = row.available_stock
+          setEffectiveStock(map)
+        }
+      }
+
       setLoading(false)
     }
     load()
@@ -53,6 +71,10 @@ export default function ProductPage() {
     ? Math.round((1 - product.price / product.compare_price!) * 100)
     : 0
 
+  // Helper: stock efectivo de una variante (con fallback al valor de BD)
+  const getStock = (v: ProductVariant) =>
+    effectiveStock[v.id] !== undefined ? effectiveStock[v.id] : v.stock
+
   // Tallas que tienen al menos una variante
   const availableSizes = SIZES.filter((s) => variants.some((v) => v.size === s))
 
@@ -61,7 +83,7 @@ export default function ProductPage() {
     ? variants.find((v) => v.size === selectedSize)
     : undefined
 
-  const canAdd = Boolean(selectedVariant && selectedVariant.stock > 0)
+  const canAdd = Boolean(selectedVariant && getStock(selectedVariant) > 0)
 
   const handleAddToCart = () => {
     if (!selectedVariant || !canAdd) return
@@ -199,7 +221,7 @@ export default function ProductPage() {
               <div className="flex flex-wrap gap-2">
                 {availableSizes.map((size) => {
                   const variant = variants.find((v) => v.size === size)
-                  const stock   = variant?.stock ?? 0
+                  const stock   = variant ? getStock(variant) : 0
                   const active  = selectedSize === size
 
                   return (
@@ -224,7 +246,7 @@ export default function ProductPage() {
                       </button>
                       {stock > 0 && stock <= 3 && (
                         <span className="text-[10px] text-orange-500 font-semibold leading-none">
-                          ¡Últimas {stock}!
+                          Últimas {stock} {stock === 1 ? 'pieza' : 'piezas'}
                         </span>
                       )}
                     </div>

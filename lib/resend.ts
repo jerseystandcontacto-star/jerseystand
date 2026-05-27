@@ -226,7 +226,53 @@ export async function sendAdminOrderNotification(order: Order) {
   }
 }
 
-// 4. Orden enviada (admin cambia status a "enviado")
+// 4. Pago fallido / cancelado → notificar al cliente
+export async function sendPaymentFailedEmail(order: { customer_name: string; customer_email: string; order_number: string }) {
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://jerseystand.com'
+    await sendEmail('payment-failed', {
+      from: getFrom(),
+      to: order.customer_email,
+      subject: `Tu pago no pudo procesarse — Orden #${order.order_number}`,
+      html: wrap(`
+        <div style="padding:40px 30px;">
+          <h2 style="color:#111410;margin:0 0 16px;font-size:22px;">Tu pago no se procesó</h2>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">
+            Hola <strong>${order.customer_name}</strong>, lamentablemente tu pago para la orden
+            <strong>#${order.order_number}</strong> no pudo completarse.
+          </p>
+          <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">
+            No se realizó ningún cargo a tu cuenta. El stock que habías reservado fue liberado
+            y está disponible nuevamente.
+          </p>
+
+          <div style="background:#fff8e1;border-left:4px solid #c9a227;border-radius:4px;padding:16px;margin:0 0 28px;">
+            <p style="margin:0;font-size:14px;color:#7a6000;">
+              Posibles causas: fondos insuficientes, datos de tarjeta incorrectos o límite de transacciones.
+              Verifica con tu banco e intenta de nuevo.
+            </p>
+          </div>
+
+          <div style="text-align:center;margin:0 0 28px;">
+            <a href="${siteUrl}/productos"
+               style="background:#c9a227;color:#111410;padding:14px 40px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">
+              Volver a la tienda
+            </a>
+          </div>
+
+          <p style="color:#888;font-size:13px;margin:0;text-align:center;">
+            ¿Necesitas ayuda? Escríbenos a
+            <a href="mailto:jerseystandcontacto@gmail.com" style="color:#c9a227;">jerseystandcontacto@gmail.com</a>
+          </p>
+        </div>
+      `),
+    })
+  } catch (err) {
+    console.error('[resend:payment-failed] error final:', err)
+  }
+}
+
+// 5. Orden enviada (admin cambia status a "enviado")
 export async function sendShippingNotification(order: Order, trackingNumber: string) {
   try {
     await sendEmail('shipping', {

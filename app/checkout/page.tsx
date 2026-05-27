@@ -63,6 +63,7 @@ export default function CheckoutPage() {
   const [couponApplied, setCouponApplied] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [sandboxMode, setSandboxMode] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
 
   // Auth & profile
   const [userId, setUserId] = useState<string | null>(null)
@@ -188,6 +189,7 @@ export default function CheckoutPage() {
   const onSubmit = async (data: CheckoutForm) => {
     if (items.length === 0) return
     setLoading(true)
+    setCheckoutError(null)
 
     try {
       const res = await fetch('/api/checkout', {
@@ -245,32 +247,50 @@ export default function CheckoutPage() {
         ...(shippingCost > 0 ? [{ name: 'Envío', price: shippingCost, quantity: 1 }] : []),
       ]
 
+      // iOS/Android bloquean window.open() en callbacks async (rompe el gesture chain).
+      // Parcheamos window.open → window.location.href antes de llamar al SDK
+      // para que la redirección ocurra en la misma pestaña y siempre funcione en móvil.
+      const _originalOpen = window.open.bind(window)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (window as any).Pay.Checkout.create({
-        publicID: process.env.NEXT_PUBLIC_ECARTPAY_PUBLIC_KEY,
-        order: {
-          email:      data.email,
-          first_name,
-          last_name,
-          phone:      data.phone,
-          currency:   'MXN',
-          items:      sdkItems,
-          shipping_address: {
+      ;(window as any).open = (url: unknown) => {
+        if (url) window.location.href = String(url)
+        return null
+      }
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (window as any).Pay.Checkout.create({
+          publicID: process.env.NEXT_PUBLIC_ECARTPAY_PUBLIC_KEY,
+          order: {
+            email:      data.email,
             first_name,
             last_name,
-            address1:    `${data.street} ${data.number}, ${data.colonia}`,
-            country:     { code: 'MX', name: 'Mexico' },
-            state:       { code: toStateCode(data.state), name: data.state },
-            city:        data.city,
-            postal_code: data.zip,
+            phone:      data.phone,
+            currency:   'MXN',
+            items:      sdkItems,
+            shipping_address: {
+              first_name,
+              last_name,
+              address1:    `${data.street} ${data.number}, ${data.colonia}`,
+              country:     { code: 'MX', name: 'Mexico' },
+              state:       { code: toStateCode(data.state), name: data.state },
+              city:        data.city,
+              postal_code: data.zip,
+            },
+            notify_url:  `${baseUrl}/api/checkout/webhook?order=${result.order_number}`,
+            success_url: `${baseUrl}/rastrear?orden=${result.order_number}`,
+            cancel_url:  `${baseUrl}/checkout`,
           },
-          notify_url: `${baseUrl}/api/checkout/webhook?order=${result.order_number}`,
-        },
-      })
+        })
+      } finally {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).open = _originalOpen
+      }
 
+      // Fallback: si el SDK no abrió ninguna URL (ej. error de red), mandamos al tracking
       router.push(`/rastrear?orden=${result.order_number}`)
     } catch (err: any) {
-      alert('Error al procesar el pedido: ' + err.message)
+      setCheckoutError(err.message || 'Error al procesar el pedido. Intenta de nuevo.')
     } finally {
       setLoading(false)
     }
@@ -507,6 +527,13 @@ export default function CheckoutPage() {
                   <span className="font-display text-2xl text-[#1a5c2e]">{formatPrice(total)}</span>
                 </div>
               </div>
+
+              {checkoutError && (
+                <div className="mt-4 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                  <span className="text-red-500 text-lg leading-none mt-0.5">⚠</span>
+                  <p className="text-red-700 text-sm leading-snug">{checkoutError}</p>
+                </div>
+              )}
 
               <Button
                 type="submit"

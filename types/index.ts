@@ -24,6 +24,18 @@ export type OrderStatus =
 
 export type ShippingType = 'estandar' | 'express' | 'gratis'
 
+export type ReservationStatus = 'pending' | 'confirmed' | 'released'
+
+export interface StockReservation {
+  id: string
+  order_id: string
+  variant_id: string
+  quantity: number
+  status: ReservationStatus
+  created_at: string
+  expires_at: string
+}
+
 export type CouponType = 'percentage' | 'fixed'
 
 export interface Product {

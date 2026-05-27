@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { verifyEcartPaySignature } from '@/lib/ecartpay'
-import { sendOrderConfirmation, sendAdminOrderNotification } from '@/lib/resend'
+import { sendOrderConfirmation, sendAdminOrderNotification, sendPaymentFailedEmail } from '@/lib/resend'
 
 // EcartPay siempre espera 200 después de procesar — solo 401 para firma inválida
 const ok = () => NextResponse.json({ received: true })
@@ -126,9 +126,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Confirmar o liberar reservas de stock ────────────────────────────
+    if (orderRow) {
+      if (isPaid) {
+        const { error: confirmErr } = await supabase.rpc('confirm_order_reservations', {
+          p_order_id: orderRow.id,
+        })
+        if (confirmErr) console.error('[webhook] confirm_order_reservations:', confirmErr.message)
+        else console.log('[webhook] Reservas confirmadas y stock descontado | orden:', orderRow.order_number)
+      } else {
+        const { error: releaseErr } = await supabase.rpc('release_order_reservations', {
+          p_order_id: orderRow.id,
+        })
+        if (releaseErr) console.error('[webhook] release_order_reservations:', releaseErr.message)
+        else console.log('[webhook] Reservas liberadas | orden:', orderRow.order_number)
+
+        // Notificar al cliente que el pago no se procesó
+        sendPaymentFailedEmail({
+          customer_name:  orderRow.customer_name,
+          customer_email: orderRow.customer_email,
+          order_number:   orderRow.order_number,
+        }).catch(console.error)
+      }
+    }
+
     // ── Emails de confirmación (solo cuando se paga) ─────────────────────
     if (isPaid && orderRow) {
-      // Obtener items de la orden
       const { data: items } = await supabase
         .from('order_items')
         .select('*')

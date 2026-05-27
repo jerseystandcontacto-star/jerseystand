@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
-import { sendOrderConfirmation, sendAdminOrderNotification } from '@/lib/resend'
 import { generateOrderNumber } from '@/lib/utils'
 import type { CartItem } from '@/types'
 
@@ -38,22 +37,6 @@ export async function POST(req: NextRequest) {
         .eq('code', coupon_code.toUpperCase())
         .single()
       coupon_id = coupon?.id || null
-    }
-
-    // Verificar stock
-    for (const item of items as CartItem[]) {
-      const { data: variant } = await supabase
-        .from('product_variants')
-        .select('stock')
-        .eq('id', item.variant.id)
-        .single()
-
-      if (!variant || variant.stock < item.quantity) {
-        return NextResponse.json(
-          { error: `Stock insuficiente para ${item.product.name} (${item.variant.size})` },
-          { status: 400 }
-        )
-      }
     }
 
     // Crear orden en Supabase
@@ -107,21 +90,25 @@ export async function POST(req: NextRequest) {
 
     await supabase.from('order_items').insert(orderItems)
 
-    // Reducir stock (valor fresco de BD)
+    // Reservar stock atómicamente (previene overselling en compras simultáneas)
     for (const item of items as CartItem[]) {
-      const { data: fresh } = await supabase
-        .from('product_variants')
-        .select('stock')
-        .eq('id', item.variant.id)
-        .single()
+      const { data: reserveResult, error: rpcErr } = await supabase.rpc('reserve_stock', {
+        p_variant_id: item.variant.id,
+        p_quantity:   item.quantity,
+        p_order_id:   order.id,
+      })
 
-      if (fresh) {
-        const newStock = Math.max(0, fresh.stock - item.quantity)
-        const { error: stockErr } = await supabase
-          .from('product_variants')
-          .update({ stock: newStock })
-          .eq('id', item.variant.id)
-        if (stockErr) console.error('[checkout] stock error:', stockErr.message)
+      if (rpcErr || !reserveResult?.success) {
+        console.error('[checkout] reserve_stock falló:', rpcErr?.message ?? reserveResult?.error)
+        // Cancelar la orden y liberar las reservas creadas en iteraciones anteriores
+        await supabase.from('orders').update({ status: 'cancelado' }).eq('id', order.id)
+        await supabase.rpc('release_order_reservations', { p_order_id: order.id })
+
+        const label = `${item.product.name} (Talla ${item.variant.size})`
+        return NextResponse.json(
+          { error: `Lo sentimos, ${label} se agotó justo ahora. Actualiza tu carrito.` },
+          { status: 400 }
+        )
       }
     }
 
@@ -140,15 +127,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!sandbox) {
-      // Emails de confirmación (no bloquea la respuesta)
-      const orderWithItems = { ...order, items: orderItems }
-      Promise.all([
-        sendOrderConfirmation(orderWithItems as any).catch(console.error),
-        sendAdminOrderNotification(orderWithItems as any).catch(console.error),
-      ])
-    } else {
-      console.log(`[checkout] Orden de PRUEBA: ${order_number}`)
+    if (sandbox) {
+      console.log(`[checkout] Orden de PRUEBA creada: ${order_number}`)
     }
 
     return NextResponse.json({ order_id: order.id, order_number })

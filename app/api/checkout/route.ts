@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': process.env.ECARTPAY_PRIVATE_KEY!,
+        'Authorization': `Bearer ${process.env.ECARTPAY_PRIVATE_KEY}`,
       },
       body: JSON.stringify({
         email:      shipping_address.email,

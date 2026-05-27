@@ -29,19 +29,6 @@ const checkoutSchema = z.object({
 })
 type CheckoutForm = z.infer<typeof checkoutSchema>
 
-const STATE_CODES: Record<string, string> = {
-  'Aguascalientes': 'AGU', 'Baja California': 'BCN', 'Baja California Sur': 'BCS',
-  'Campeche': 'CAM', 'Chiapas': 'CHP', 'Chihuahua': 'CHH', 'Ciudad de México': 'CMX',
-  'Coahuila': 'COA', 'Colima': 'COL', 'Durango': 'DUR', 'Estado de México': 'MEX',
-  'Guanajuato': 'GUA', 'Guerrero': 'GRO', 'Hidalgo': 'HID', 'Jalisco': 'JAL',
-  'Michoacán': 'MIC', 'Morelos': 'MOR', 'Nayarit': 'NAY', 'Nuevo León': 'NLE',
-  'Oaxaca': 'OAX', 'Puebla': 'PUE', 'Querétaro': 'QUE', 'Quintana Roo': 'ROO',
-  'San Luis Potosí': 'SLP', 'Sinaloa': 'SIN', 'Sonora': 'SON', 'Tabasco': 'TAB',
-  'Tamaulipas': 'TAM', 'Tlaxcala': 'TLA', 'Veracruz': 'VER', 'Yucatán': 'YUC',
-  'Zacatecas': 'ZAC',
-}
-const toStateCode = (state: string) => STATE_CODES[state] ?? state.substring(0, 3).toUpperCase()
-
 const MEXICAN_STATES = [
   'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche', 'Chiapas',
   'Chihuahua', 'Ciudad de México', 'Coahuila', 'Colima', 'Durango', 'Estado de México',
@@ -233,62 +220,7 @@ export default function CheckoutPage() {
         return
       }
 
-      const nameParts  = data.full_name.trim().split(/\s+/)
-      const first_name = nameParts[0]
-      const last_name  = nameParts.slice(1).join(' ') || nameParts[0]
-      const baseUrl    = process.env.NEXT_PUBLIC_SITE_URL || 'https://jerseystand.com'
-
-      const sdkItems = [
-        ...items.map((item) => ({
-          name:     `${item.product.name} Talla ${item.variant.size}`,
-          price:    item.product.price,
-          quantity: item.quantity,
-        })),
-        ...(shippingCost > 0 ? [{ name: 'Envío', price: shippingCost, quantity: 1 }] : []),
-      ]
-
-      // iOS/Android bloquean window.open() en callbacks async (rompe el gesture chain).
-      // Parcheamos window.open → window.location.href antes de llamar al SDK
-      // para que la redirección ocurra en la misma pestaña y siempre funcione en móvil.
-      const _originalOpen = window.open.bind(window)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(window as any).open = (url: unknown) => {
-        if (url) window.location.href = String(url)
-        return null
-      }
-
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (window as any).Pay.Checkout.create({
-          publicID: process.env.NEXT_PUBLIC_ECARTPAY_PUBLIC_KEY,
-          order: {
-            email:      data.email,
-            first_name,
-            last_name,
-            phone:      data.phone,
-            currency:   'MXN',
-            items:      sdkItems,
-            shipping_address: {
-              first_name,
-              last_name,
-              address1:    `${data.street} ${data.number}, ${data.colonia}`,
-              country:     { code: 'MX', name: 'Mexico' },
-              state:       { code: toStateCode(data.state), name: data.state },
-              city:        data.city,
-              postal_code: data.zip,
-            },
-            notify_url:  `${baseUrl}/api/checkout/webhook?order=${result.order_number}`,
-            success_url: `${baseUrl}/rastrear?orden=${result.order_number}`,
-            cancel_url:  `${baseUrl}/checkout`,
-          },
-        })
-      } finally {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(window as any).open = _originalOpen
-      }
-
-      // Fallback: si el SDK no abrió ninguna URL (ej. error de red), mandamos al tracking
-      router.push(`/rastrear?orden=${result.order_number}`)
+      window.location.href = result.checkout_url
     } catch (err: any) {
       setCheckoutError(err.message || 'Error al procesar el pedido. Intenta de nuevo.')
     } finally {

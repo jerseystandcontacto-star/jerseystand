@@ -3,6 +3,18 @@ import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { generateOrderNumber } from '@/lib/utils'
 import type { CartItem } from '@/types'
 
+const STATE_CODES: Record<string, string> = {
+  'Aguascalientes': 'AGU', 'Baja California': 'BCN', 'Baja California Sur': 'BCS',
+  'Campeche': 'CAM', 'Chiapas': 'CHP', 'Chihuahua': 'CHH', 'Ciudad de México': 'CMX',
+  'Coahuila': 'COA', 'Colima': 'COL', 'Durango': 'DUR', 'Estado de México': 'MEX',
+  'Guanajuato': 'GUA', 'Guerrero': 'GRO', 'Hidalgo': 'HID', 'Jalisco': 'JAL',
+  'Michoacán': 'MIC', 'Morelos': 'MOR', 'Nayarit': 'NAY', 'Nuevo León': 'NLE',
+  'Oaxaca': 'OAX', 'Puebla': 'PUE', 'Querétaro': 'QUE', 'Quintana Roo': 'ROO',
+  'San Luis Potosí': 'SLP', 'Sinaloa': 'SIN', 'Sonora': 'SON', 'Tabasco': 'TAB',
+  'Tamaulipas': 'TAM', 'Tlaxcala': 'TLA', 'Veracruz': 'VER', 'Yucatán': 'YUC',
+  'Zacatecas': 'ZAC',
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -129,9 +141,72 @@ export async function POST(req: NextRequest) {
 
     if (sandbox) {
       console.log(`[checkout] Orden de PRUEBA creada: ${order_number}`)
+      return NextResponse.json({ order_id: order.id, order_number })
     }
 
-    return NextResponse.json({ order_id: order.id, order_number })
+    // Llamada REST a EcartPay para obtener el link de pago
+    const nameParts  = (shipping_address.full_name as string).trim().split(/\s+/)
+    const first_name = nameParts[0]
+    const last_name  = nameParts.slice(1).join(' ') || nameParts[0]
+    const baseUrl    = process.env.NEXT_PUBLIC_SITE_URL || 'https://jerseystand.com'
+    const stateCode  = STATE_CODES[shipping_address.state as string] ?? (shipping_address.state as string).substring(0, 3).toUpperCase()
+
+    const ecartItems = [
+      ...(items as CartItem[]).map((item) => ({
+        name:     `${item.product.name} Talla ${item.variant.size}`,
+        price:    item.product.price,
+        quantity: item.quantity,
+      })),
+      ...(shipping_cost > 0 ? [{ name: 'Envío', price: shipping_cost, quantity: 1 }] : []),
+    ]
+
+    const ecartRes = await fetch('https://pay.ecart.com/api/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': process.env.ECARTPAY_PRIVATE_KEY!,
+      },
+      body: JSON.stringify({
+        email:      shipping_address.email,
+        first_name,
+        last_name,
+        phone:      shipping_address.phone,
+        currency:   'MXN',
+        items:      ecartItems,
+        shipping_address: {
+          first_name,
+          last_name,
+          address1:    `${shipping_address.street} ${shipping_address.number}, ${shipping_address.colonia}`,
+          country:     { code: 'MX', name: 'Mexico' },
+          state:       { code: stateCode, name: shipping_address.state },
+          city:        shipping_address.city,
+          postal_code: shipping_address.zip,
+        },
+        notify_url:  `${baseUrl}/api/checkout/webhook?order=${order_number}`,
+        success_url: `${baseUrl}/rastrear?orden=${order_number}`,
+        cancel_url:  `${baseUrl}/checkout`,
+      }),
+    })
+
+    if (!ecartRes.ok) {
+      const errBody = await ecartRes.text()
+      console.error('[checkout] EcartPay error:', ecartRes.status, errBody)
+      await supabase.from('orders').update({ status: 'cancelado' }).eq('id', order.id)
+      await supabase.rpc('release_order_reservations', { p_order_id: order.id })
+      return NextResponse.json({ error: 'Error al crear el pago. Intenta de nuevo.' }, { status: 502 })
+    }
+
+    const ecartData = await ecartRes.json()
+    const checkout_url: string | undefined = ecartData.order?.pay_link ?? ecartData.pay_link
+
+    if (!checkout_url) {
+      console.error('[checkout] EcartPay no retornó pay_link:', JSON.stringify(ecartData))
+      await supabase.from('orders').update({ status: 'cancelado' }).eq('id', order.id)
+      await supabase.rpc('release_order_reservations', { p_order_id: order.id })
+      return NextResponse.json({ error: 'Error al obtener el link de pago.' }, { status: 502 })
+    }
+
+    return NextResponse.json({ order_id: order.id, order_number, checkout_url })
   } catch (err: any) {
     console.error('[checkout]', err)
     return NextResponse.json(

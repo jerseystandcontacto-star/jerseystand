@@ -84,9 +84,8 @@ export function Hero() {
 
             {/* Foto de producto */}
             <div style={{
-              width: '400px',
-              height: '500px',
-              borderRadius: '16px',
+              width: '480px',
+              height: '580px',
               overflow: 'hidden',
               boxShadow: '0 25px 50px rgba(0,0,0,0.5)'
             }}>
@@ -96,8 +95,11 @@ export function Hero() {
                 style={{
                   width: '100%',
                   height: '100%',
-                  objectFit: 'contain',
-                  display: 'block'
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                  display: 'block',
+                  margin: 0,
+                  padding: 0,
                 }}
               />
             </div>

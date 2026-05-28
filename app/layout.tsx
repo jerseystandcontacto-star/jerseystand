@@ -24,11 +24,12 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'es_MX',
     siteName: 'Jersey Stand',
-    images: [{ url: 'https://jerseystand.shop/og-image.jpg', width: 1200, height: 630 }],
+    images: [{ url: 'https://www.jerseystand.shop/logo.png', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     site: '@jerseystandcontacto',
+    images: ['https://www.jerseystand.shop/logo.png'],
   },
   robots: {
     index: true,

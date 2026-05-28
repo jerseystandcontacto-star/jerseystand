@@ -217,9 +217,8 @@ export async function POST(req: NextRequest) {
           city:        shipping_address.city,
           postal_code: shipping_address.zip,
         },
-        notify_url:  `${baseUrl}/api/checkout/webhook?order=${order_number}`,
-        success_url: `${baseUrl}/rastrear?orden=${order_number}`,
-        cancel_url:  `${baseUrl}/checkout`,
+        notify_url:   `${baseUrl}/api/checkout/webhook?order=${order_number}`,
+        redirect_url: `${baseUrl}/rastrear?orden=${order_number}`,
       }),
     })
 

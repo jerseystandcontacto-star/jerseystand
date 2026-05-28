@@ -144,13 +144,48 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ order_id: order.id, order_number })
     }
 
-    // Llamada REST a EcartPay para obtener el link de pago
+    // Llamada REST a EcartPay — flujo de dos pasos: auth → crear orden
     const nameParts  = (shipping_address.full_name as string).trim().split(/\s+/)
     const first_name = nameParts[0]
     const last_name  = nameParts.slice(1).join(' ') || nameParts[0]
     const baseUrl    = process.env.NEXT_PUBLIC_SITE_URL || 'https://jerseystand.com'
     const stateCode  = STATE_CODES[shipping_address.state as string] ?? (shipping_address.state as string).substring(0, 3).toUpperCase()
+    const ecartBase  = process.env.ECARTPAY_SANDBOX === 'true'
+      ? 'https://sandbox.ecartpay.com'
+      : 'https://pay.ecart.com'
 
+    // Paso 1: obtener JWT token con Basic Auth (base64(publicKey:privateKey))
+    const credentials = Buffer.from(
+      `${process.env.NEXT_PUBLIC_ECARTPAY_PUBLIC_KEY}:${process.env.ECARTPAY_PRIVATE_KEY}`
+    ).toString('base64')
+
+    const authRes = await fetch(`${ecartBase}/api/authorizations/token`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!authRes.ok) {
+      const errBody = await authRes.text()
+      console.error('[checkout] EcartPay auth error:', authRes.status, errBody)
+      await supabase.from('orders').update({ status: 'cancelado' }).eq('id', order.id)
+      await supabase.rpc('release_order_reservations', { p_order_id: order.id })
+      return NextResponse.json({ error: 'Error de autenticación con EcartPay.' }, { status: 502 })
+    }
+
+    const authData  = await authRes.json()
+    const ecartToken: string = authData.token
+
+    if (!ecartToken) {
+      console.error('[checkout] EcartPay no retornó token:', JSON.stringify(authData))
+      await supabase.from('orders').update({ status: 'cancelado' }).eq('id', order.id)
+      await supabase.rpc('release_order_reservations', { p_order_id: order.id })
+      return NextResponse.json({ error: 'Error al autenticar con EcartPay.' }, { status: 502 })
+    }
+
+    // Paso 2: crear la orden con el JWT obtenido
     const ecartItems = [
       ...(items as CartItem[]).map((item) => ({
         name:     `${item.product.name} Talla ${item.variant.size}`,
@@ -160,11 +195,11 @@ export async function POST(req: NextRequest) {
       ...(shipping_cost > 0 ? [{ name: 'Envío', price: shipping_cost, quantity: 1 }] : []),
     ]
 
-    const ecartRes = await fetch('https://pay.ecart.com/api/orders', {
+    const ecartRes = await fetch(`${ecartBase}/api/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.ECARTPAY_PRIVATE_KEY}`,
+        'Authorization': `Bearer ${ecartToken}`,
       },
       body: JSON.stringify({
         email:      shipping_address.email,
@@ -190,7 +225,7 @@ export async function POST(req: NextRequest) {
 
     if (!ecartRes.ok) {
       const errBody = await ecartRes.text()
-      console.error('[checkout] EcartPay error:', ecartRes.status, errBody)
+      console.error('[checkout] EcartPay order error:', ecartRes.status, errBody)
       await supabase.from('orders').update({ status: 'cancelado' }).eq('id', order.id)
       await supabase.rpc('release_order_reservations', { p_order_id: order.id })
       return NextResponse.json({ error: 'Error al crear el pago. Intenta de nuevo.' }, { status: 502 })

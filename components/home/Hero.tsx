@@ -77,32 +77,14 @@ export function Hero() {
         </div>
 
         {/* Visual */}
-        <div className="relative flex items-center justify-center lg:justify-end">
-          <div className="relative w-80 h-80 sm:w-[420px] sm:h-[420px]">
-            {/* Círculo decorativo */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#1a5c2e]/40 to-[#c9a227]/20 blur-3xl" />
-
-            {/* Foto de producto */}
-            <div style={{
-              width: '480px',
-              height: '580px',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px rgba(0,0,0,0.5)'
-            }}>
-              <img
-                src="/stand.jpg"
-                alt="Jersey Stand"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'center',
-                  display: 'block',
-                  margin: 0,
-                  padding: 0,
-                }}
-              />
-            </div>
+        <div className="order-first lg:order-last w-full">
+          <div className="relative h-[250px] lg:h-[620px] w-full overflow-hidden rounded-2xl shadow-[0_25px_50px_rgba(0,0,0,0.5)]">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1a5c2e]/20 to-[#c9a227]/10 blur-3xl pointer-events-none" aria-hidden="true" />
+            <img
+              src="/stand.jpg"
+              alt="Jersey Stand"
+              className="w-full h-full object-cover object-top"
+            />
           </div>
         </div>
       </div>

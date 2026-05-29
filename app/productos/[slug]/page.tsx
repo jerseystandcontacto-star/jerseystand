@@ -9,6 +9,7 @@ import { useCartStore } from '@/store/cartStore'
 import { Button } from '@/components/ui/Button'
 import { PageLoading } from '@/components/ui/Loading'
 import { formatPrice } from '@/lib/utils'
+import { fbqTrack } from '@/lib/fbq'
 import type { Product, ProductVariant, ProductSize } from '@/types'
 import { SIZES } from '@/types'
 
@@ -34,6 +35,16 @@ export default function ProductPage() {
         .single()
       if (error) console.error('[producto] fetch error:', error.message)
       setProduct(data as Product)
+      if (data) {
+        const p = data as Product
+        fbqTrack('ViewContent', {
+          content_name: p.name,
+          content_ids: [p.id],
+          content_type: 'product',
+          currency: 'MXN',
+          value: p.price,
+        })
+      }
 
       // Calcular stock real = stock_bd - reservas_activas_pendientes
       const variantIds: string[] = (data as Product)?.variants?.map((v) => v.id) ?? []
@@ -88,6 +99,13 @@ export default function ProductPage() {
   const handleAddToCart = () => {
     if (!selectedVariant || !canAdd) return
     addItem(product, selectedVariant)
+    fbqTrack('AddToCart', {
+      content_name: product.name,
+      content_ids: [product.id],
+      content_type: 'product',
+      currency: 'MXN',
+      value: product.price,
+    })
     setAddedToCart(true)
     setTimeout(() => setAddedToCart(false), 2000)
   }

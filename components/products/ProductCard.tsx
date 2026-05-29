@@ -6,6 +6,7 @@ import { ShoppingCart } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import type { Product } from '@/types'
 import { formatPrice } from '@/lib/utils'
+import { fbqTrack } from '@/lib/fbq'
 
 function isNew(createdAt: string): boolean {
   return Date.now() - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
@@ -26,7 +27,15 @@ export function ProductCard({ product }: { product: Product }) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (firstAvailable) addItem(product, firstAvailable)
+    if (!firstAvailable) return
+    addItem(product, firstAvailable)
+    fbqTrack('AddToCart', {
+      content_name: product.name,
+      content_ids: [product.id],
+      content_type: 'product',
+      currency: 'MXN',
+      value: product.price,
+    })
   }
 
   return (

@@ -47,7 +47,7 @@ const FOOTER = `
   <div style="background:#111410;padding:20px;text-align:center;color:#888;font-size:12px;">
     <p style="margin:0 0 8px;">Jersey Stand | Gear auténtico</p>
     <p style="margin:0;">
-      <a href="https://www.instagram.com/jerseystandcontacto/" style="color:#c9a227;text-decoration:none;">@jerseystandcontacto</a>
+      <a href="https://www.instagram.com/jerseystandmx/" style="color:#c9a227;text-decoration:none;">@jerseystandmx</a>
       &nbsp;·&nbsp;
       <a href="mailto:jerseystandcontacto@gmail.com" style="color:#c9a227;text-decoration:none;">jerseystandcontacto@gmail.com</a>
     </p>
@@ -89,7 +89,7 @@ export async function sendWelcomeEmail(email: string, name: string) {
           </div>
           <p style="color:#888;font-size:13px;margin:0;">
             Síguenos en Instagram
-            <a href="https://www.instagram.com/jerseystandcontacto/" style="color:#c9a227;">@jerseystandcontacto</a>
+            <a href="https://www.instagram.com/jerseystandmx/" style="color:#c9a227;">@jerseystandmx</a>
             para enterarte primero de nuevos lanzamientos y promociones.
           </p>
         </div>
@@ -430,7 +430,7 @@ export async function sendQuoteConfirmation(quote: {
           </div>
           <p style="color:#888;font-size:13px;margin:0;">
             Para consultas urgentes escríbenos por Instagram:
-            <a href="https://www.instagram.com/jerseystandcontacto/" style="color:#c9a227;">@jerseystandcontacto</a>
+            <a href="https://www.instagram.com/jerseystandmx/" style="color:#c9a227;">@jerseystandmx</a>
           </p>
         </div>
       `),

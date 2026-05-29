@@ -140,12 +140,12 @@ export default function ContactoPage() {
                 <div>
                   <p className="font-semibold text-sm">Instagram</p>
                   <a
-                    href="https://www.instagram.com/jerseystandcontacto/"
+                    href="https://www.instagram.com/jerseystandmx/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#c9a227] text-sm hover:underline"
                   >
-                    @jerseystand
+                    @jerseystandmx
                   </a>
                   <p className="text-white/40 text-xs">DM disponibles para consultas rápidas</p>
                 </div>

@@ -271,7 +271,7 @@ export default function TerminosPage() {
               jerseystandcontacto@gmail.com
             </a>
           </li>
-          <li><strong>Instagram:</strong> @jerseystandcontacto</li>
+          <li><strong>Instagram:</strong> @jerseystandmx</li>
           <li><strong>Ubicación:</strong> Ciudad de México, México</li>
         </ul>
       </Section>

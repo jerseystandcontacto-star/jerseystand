@@ -128,7 +128,7 @@ export function Navbar() {
             </Link>
 
             <a
-              href={process.env.NEXT_PUBLIC_INSTAGRAM_URL || 'https://www.instagram.com/jerseystandcontacto/'}
+              href={process.env.NEXT_PUBLIC_INSTAGRAM_URL || 'https://www.instagram.com/jerseystandmx/'}
               target="_blank"
               rel="noopener noreferrer"
               className="text-white/70 hover:text-[#c9a227] transition-colors p-2 hidden sm:block"

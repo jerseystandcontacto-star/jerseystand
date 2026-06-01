@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   // Buscar por número de orden o número de guía
   const { data: order } = await supabase
     .from('orders')
-    .select('*')
+    .select('*, items:order_items(product_id, product_name, quantity, price)')
     .or(`order_number.eq.${q},tracking_number.eq.${q}`)
     .single()
 

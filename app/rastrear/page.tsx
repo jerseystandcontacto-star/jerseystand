@@ -1,32 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { Search, Package, CheckCircle, Truck, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { formatDate, formatPrice } from '@/lib/utils'
+import { fbqTrack } from '@/lib/fbq'
 import { OrderStatusBadge } from '@/components/ui/Badge'
 import type { Order } from '@/types'
 import { ORDER_STATUS_LABELS } from '@/types'
 
 function TrackingContent() {
   const searchParams = useSearchParams()
-  const [query, setQuery] = useState(searchParams.get('orden') || '')
-  const [order, setOrder] = useState<Order | null>(null)
+  const ordenParam   = searchParams.get('orden') ?? ''
+  const [query, setQuery]   = useState(ordenParam)
+  const [order, setOrder]   = useState<Order | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError]   = useState('')
   const [searched, setSearched] = useState(false)
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!query.trim()) return
+  const doSearch = async (q: string) => {
+    if (!q.trim()) return
     setLoading(true)
     setError('')
     setSearched(true)
-
     try {
-      const res = await fetch(`/api/orders/track?q=${encodeURIComponent(query.trim())}`)
+      const res  = await fetch(`/api/orders/track?q=${encodeURIComponent(q.trim())}`)
       const data = await res.json()
       if (res.ok) {
         setOrder(data)
@@ -40,6 +40,38 @@ function TrackingContent() {
       setLoading(false)
     }
   }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    doSearch(query)
+  }
+
+  // Auto-buscar cuando viene el redirect de EcartPay (?orden=...)
+  useEffect(() => {
+    if (ordenParam) doSearch(ordenParam)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Disparar Purchase una sola vez al encontrar la orden del redirect
+  useEffect(() => {
+    if (!order || !ordenParam || order.status === 'cancelado') return
+    if (order.order_number !== ordenParam) return
+
+    const storageKey = `fbq_purchase_${order.order_number}`
+    if (sessionStorage.getItem(storageKey)) return
+
+    const contentIds = (order.items ?? [])
+      .map((i) => i.product_id)
+      .filter((id): id is string => Boolean(id))
+
+    fbqTrack('Purchase', {
+      value:        order.total,
+      currency:     'MXN',
+      content_ids:  contentIds.length > 0 ? contentIds : [order.order_number],
+      content_type: 'product',
+    })
+
+    sessionStorage.setItem(storageKey, '1')
+  }, [order]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const steps = [
     { key: 'pendiente', label: 'Pedido recibido', icon: Clock },

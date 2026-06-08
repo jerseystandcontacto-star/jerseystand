@@ -1,17 +1,61 @@
 'use client'
 
+import { Suspense, useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react'
+import { Trash2, Plus, Minus, ShoppingBag, Loader2 } from 'lucide-react'
 import { useCartStore } from '@/store/cartStore'
 import { Button } from '@/components/ui/Button'
 import { formatPrice } from '@/lib/utils'
 import { SHIPPING_OPTIONS } from '@/types'
+import { createClient } from '@/lib/supabase/client'
+import type { Product } from '@/types'
 
-export default function CartPage() {
-  const { items, removeItem, updateQuantity, getSubtotal } = useCartStore()
+function CartPageInner() {
+  const searchParams = useSearchParams()
+  const { items, removeItem, updateQuantity, getSubtotal, addItem } = useCartStore()
   const subtotal = getSubtotal()
   const shippingCost = subtotal >= 1500 ? 0 : 149
+  const loaded = useRef(false)
+
+  const rawIds = searchParams.getAll('product_retailer_ids')
+  const metaIds = rawIds.flatMap((v) => v.split(',').map((s) => s.trim())).filter(Boolean)
+  const hasMetaParams = metaIds.length > 0
+
+  const [metaLoading, setMetaLoading] = useState(hasMetaParams)
+
+  useEffect(() => {
+    if (loaded.current || !hasMetaParams) return
+    loaded.current = true
+
+    const quantity = Math.max(1, parseInt(searchParams.get('quantity') ?? '1', 10) || 1)
+    const coupon = searchParams.get('coupon_code')
+    if (coupon) sessionStorage.setItem('meta_coupon', coupon)
+
+    createClient()
+      .from('products')
+      .select('*, variants:product_variants(*)')
+      .in('id', metaIds)
+      .eq('active', true)
+      .then(({ data }) => {
+        for (const product of (data ?? []) as Product[]) {
+          const variant = product.variants?.find((v) => v.stock > 0) ?? product.variants?.[0]
+          if (variant) addItem(product, variant, quantity)
+        }
+        setMetaLoading(false)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  if (metaLoading) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-24 text-center">
+        <Loader2 className="w-12 h-12 text-[#1a5c2e] mx-auto mb-6 animate-spin" />
+        <p className="text-gray-500">Agregando productos al carrito…</p>
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (
@@ -156,5 +200,20 @@ export default function CartPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function CartPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-xl mx-auto px-4 py-24 text-center">
+          <Loader2 className="w-12 h-12 text-[#1a5c2e] mx-auto mb-6 animate-spin" />
+          <p className="text-gray-500">Cargando carrito…</p>
+        </div>
+      }
+    >
+      <CartPageInner />
+    </Suspense>
   )
 }

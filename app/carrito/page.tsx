@@ -19,29 +19,45 @@ function CartPageInner() {
   const shippingCost = subtotal >= 1500 ? 0 : 149
   const loaded = useRef(false)
 
-  const rawIds = searchParams.getAll('product_retailer_ids')
-  const metaIds = rawIds.flatMap((v) => v.split(',').map((s) => s.trim())).filter(Boolean)
-  const hasMetaParams = metaIds.length > 0
+  // Build a map of productId → quantity supporting two Meta formats:
+  // Format 1: ?product_retailer_ids=id1&quantity=N  (standard)
+  // Format 2: ?products=ID:quantity                 (Meta test / shops)
+  const productMap = new Map<string, number>()
 
+  const globalQty = Math.max(1, parseInt(searchParams.get('quantity') ?? '1', 10) || 1)
+  for (const raw of searchParams.getAll('product_retailer_ids')) {
+    for (const id of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+      productMap.set(id, globalQty)
+    }
+  }
+  for (const raw of searchParams.getAll('products')) {
+    for (const entry of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+      const [id, qtyStr] = entry.split(':')
+      if (id) productMap.set(id, Math.max(1, parseInt(qtyStr ?? '1', 10) || 1))
+    }
+  }
+
+  const hasMetaParams = productMap.size > 0
   const [metaLoading, setMetaLoading] = useState(hasMetaParams)
 
   useEffect(() => {
     if (loaded.current || !hasMetaParams) return
     loaded.current = true
 
-    const quantity = Math.max(1, parseInt(searchParams.get('quantity') ?? '1', 10) || 1)
     const coupon = searchParams.get('coupon_code')
     if (coupon) sessionStorage.setItem('meta_coupon', coupon)
 
+    const ids = [...productMap.keys()]
     createClient()
       .from('products')
       .select('*, variants:product_variants(*)')
-      .in('id', metaIds)
+      .in('id', ids)
       .eq('active', true)
       .then(({ data }) => {
         for (const product of (data ?? []) as Product[]) {
+          const qty = productMap.get(product.id) ?? 1
           const variant = product.variants?.find((v) => v.stock > 0) ?? product.variants?.[0]
-          if (variant) addItem(product, variant, quantity)
+          if (variant) addItem(product, variant, qty)
         }
         setMetaLoading(false)
       })

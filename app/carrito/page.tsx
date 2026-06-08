@@ -24,6 +24,10 @@ function CartPageInner() {
   // Format 2: ?products=ID:quantity                 (Meta test / shops)
   const productMap = new Map<string, number>()
 
+  console.log('[carrito] searchParams string:', searchParams.toString())
+  console.log('[carrito] products raw:', searchParams.getAll('products'))
+  console.log('[carrito] product_retailer_ids raw:', searchParams.getAll('product_retailer_ids'))
+
   const globalQty = Math.max(1, parseInt(searchParams.get('quantity') ?? '1', 10) || 1)
   for (const raw of searchParams.getAll('product_retailer_ids')) {
     for (const id of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
@@ -31,16 +35,26 @@ function CartPageInner() {
     }
   }
   for (const raw of searchParams.getAll('products')) {
+    console.log('[carrito] parsing products entry:', JSON.stringify(raw))
     for (const entry of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
-      const [id, qtyStr] = entry.split(':')
-      if (id) productMap.set(id, Math.max(1, parseInt(qtyStr ?? '1', 10) || 1))
+      const colonIdx = entry.indexOf(':')
+      const id = colonIdx >= 0 ? entry.slice(0, colonIdx) : entry
+      const qtyStr = colonIdx >= 0 ? entry.slice(colonIdx + 1) : '1'
+      const qty = Math.max(1, parseInt(qtyStr, 10) || 1)
+      console.log('[carrito] extracted id:', id, '| qty:', qty)
+      if (id) productMap.set(id, qty)
     }
   }
+
+  console.log('[carrito] productMap:', Object.fromEntries(productMap))
 
   const hasMetaParams = productMap.size > 0
   const [metaLoading, setMetaLoading] = useState(hasMetaParams)
 
+  console.log('[carrito] hasMetaParams:', hasMetaParams, '| metaLoading init:', hasMetaParams)
+
   useEffect(() => {
+    console.log('[carrito] useEffect fired | loaded:', loaded.current, '| hasMetaParams:', hasMetaParams)
     if (loaded.current || !hasMetaParams) return
     loaded.current = true
 
@@ -48,15 +62,20 @@ function CartPageInner() {
     if (coupon) sessionStorage.setItem('meta_coupon', coupon)
 
     const ids = [...productMap.keys()]
+    console.log('[carrito] fetching Supabase for ids:', ids)
+
     createClient()
       .from('products')
       .select('*, variants:product_variants(*)')
       .in('id', ids)
       .eq('active', true)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        console.log('[carrito] supabase response | error:', error, '| rows:', data?.length ?? 0)
+        if (error) { setMetaLoading(false); return }
         for (const product of (data ?? []) as Product[]) {
           const qty = productMap.get(product.id) ?? 1
           const variant = product.variants?.find((v) => v.stock > 0) ?? product.variants?.[0]
+          console.log('[carrito] product:', product.name, '| variant:', variant?.id, '| stock:', variant?.stock, '| qty to add:', qty)
           if (variant) addItem(product, variant, qty)
         }
         setMetaLoading(false)

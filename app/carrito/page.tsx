@@ -17,66 +17,63 @@ function CartPageInner() {
   const { items, removeItem, updateQuantity, getSubtotal, addItem } = useCartStore()
   const subtotal = getSubtotal()
   const shippingCost = subtotal >= 1500 ? 0 : 149
-  const loaded = useRef(false)
+  const alreadyLoaded = useRef(false)
 
-  // Build a map of productId → quantity supporting two Meta formats:
-  // Format 1: ?product_retailer_ids=id1&quantity=N  (standard)
-  // Format 2: ?products=ID:quantity                 (Meta test / shops)
-  const productMap = new Map<string, number>()
+  // Determinar si hay parámetros Meta solo para el estado inicial del spinner.
+  // El parsing detallado ocurre dentro del useEffect para evitar que variables
+  // del render-body sean capturadas por closure y causen loops.
+  const hasMetaParams =
+    searchParams.has('product_retailer_ids') || searchParams.has('products')
 
-  console.log('[carrito] searchParams string:', searchParams.toString())
-  console.log('[carrito] products raw:', searchParams.getAll('products'))
-  console.log('[carrito] product_retailer_ids raw:', searchParams.getAll('product_retailer_ids'))
-
-  const globalQty = Math.max(1, parseInt(searchParams.get('quantity') ?? '1', 10) || 1)
-  for (const raw of searchParams.getAll('product_retailer_ids')) {
-    for (const id of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
-      productMap.set(id, globalQty)
-    }
-  }
-  for (const raw of searchParams.getAll('products')) {
-    console.log('[carrito] parsing products entry:', JSON.stringify(raw))
-    for (const entry of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
-      const colonIdx = entry.indexOf(':')
-      const id = colonIdx >= 0 ? entry.slice(0, colonIdx) : entry
-      const qtyStr = colonIdx >= 0 ? entry.slice(colonIdx + 1) : '1'
-      const qty = Math.max(1, parseInt(qtyStr, 10) || 1)
-      console.log('[carrito] extracted id:', id, '| qty:', qty)
-      if (id) productMap.set(id, qty)
-    }
-  }
-
-  console.log('[carrito] productMap:', Object.fromEntries(productMap))
-
-  const hasMetaParams = productMap.size > 0
   const [metaLoading, setMetaLoading] = useState(hasMetaParams)
 
-  console.log('[carrito] hasMetaParams:', hasMetaParams, '| metaLoading init:', hasMetaParams)
-
   useEffect(() => {
-    console.log('[carrito] useEffect fired | loaded:', loaded.current, '| hasMetaParams:', hasMetaParams)
-    if (loaded.current || !hasMetaParams) return
-    loaded.current = true
+    // Marcamos true como primera línea — antes de cualquier operación asíncrona —
+    // para que ningún re-mount ni StrictMode double-invoke ejecute esto dos veces.
+    if (alreadyLoaded.current) return
+    alreadyLoaded.current = true
+
+    // Construir el mapa productId → cantidad aquí dentro, no en render.
+    // Formato 1: ?product_retailer_ids=id1,id2&quantity=N
+    // Formato 2: ?products=ID:cantidad  (Meta Shops / pruebas)
+    const map = new Map<string, number>()
+
+    const globalQty = Math.max(1, parseInt(searchParams.get('quantity') ?? '1', 10) || 1)
+    for (const raw of searchParams.getAll('product_retailer_ids')) {
+      for (const id of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+        map.set(id, globalQty)
+      }
+    }
+    for (const raw of searchParams.getAll('products')) {
+      for (const entry of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+        const colonIdx = entry.indexOf(':')
+        const id = colonIdx >= 0 ? entry.slice(0, colonIdx) : entry
+        const qtyStr = colonIdx >= 0 ? entry.slice(colonIdx + 1) : '1'
+        if (id) map.set(id, Math.max(1, parseInt(qtyStr, 10) || 1))
+      }
+    }
+
+    if (map.size === 0) {
+      setMetaLoading(false)
+      return
+    }
 
     const coupon = searchParams.get('coupon_code')
     if (coupon) sessionStorage.setItem('meta_coupon', coupon)
 
-    const ids = [...productMap.keys()]
-    console.log('[carrito] fetching Supabase for ids:', ids)
-
+    const ids = [...map.keys()]
     createClient()
       .from('products')
       .select('*, variants:product_variants(*)')
       .in('id', ids)
       .eq('active', true)
       .then(({ data, error }) => {
-        console.log('[carrito] supabase response | error:', error, '| rows:', data?.length ?? 0)
-        if (error) { setMetaLoading(false); return }
-        for (const product of (data ?? []) as Product[]) {
-          const qty = productMap.get(product.id) ?? 1
-          const variant = product.variants?.find((v) => v.stock > 0) ?? product.variants?.[0]
-          console.log('[carrito] product:', product.name, '| variant:', variant?.id, '| stock:', variant?.stock, '| qty to add:', qty)
-          if (variant) addItem(product, variant, qty)
+        if (!error) {
+          for (const product of (data ?? []) as Product[]) {
+            const qty = map.get(product.id) ?? 1
+            const variant = product.variants?.find((v) => v.stock > 0) ?? product.variants?.[0]
+            if (variant) addItem(product, variant, qty)
+          }
         }
         setMetaLoading(false)
       })

@@ -53,16 +53,27 @@ function TrackingContent() {
 
   // Disparar Purchase una sola vez al encontrar la orden del redirect
   useEffect(() => {
-    if (!order || !ordenParam || order.status === 'cancelado') return
-    if (order.order_number !== ordenParam) return
+    console.log('[fbq/Purchase] check — order:', order?.order_number, '| ordenParam:', ordenParam, '| status:', order?.status)
+    if (!order || !ordenParam || order.status === 'cancelado') {
+      console.log('[fbq/Purchase] omitido — falta orden, param o está cancelada')
+      return
+    }
+    if (order.order_number !== ordenParam) {
+      console.log('[fbq/Purchase] omitido — order_number no coincide con param')
+      return
+    }
 
     const storageKey = `fbq_purchase_${order.order_number}`
-    if (sessionStorage.getItem(storageKey)) return
+    if (sessionStorage.getItem(storageKey)) {
+      console.log('[fbq/Purchase] omitido — ya disparado antes (sessionStorage)')
+      return
+    }
 
     const contentIds = (order.items ?? [])
       .map((i) => i.product_id)
       .filter((id): id is string => Boolean(id))
 
+    console.log('[fbq/Purchase] disparando — total:', order.total, '| content_ids:', contentIds)
     fbqTrack('Purchase', {
       value:        order.total,
       currency:     'MXN',

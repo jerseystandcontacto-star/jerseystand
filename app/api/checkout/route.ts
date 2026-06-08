@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
     const nameParts  = (shipping_address.full_name as string).trim().split(/\s+/)
     const first_name = nameParts[0]
     const last_name  = nameParts.slice(1).join(' ') || nameParts[0]
-    const baseUrl    = process.env.NEXT_PUBLIC_SITE_URL || 'https://jerseystand.com'
+    const baseUrl    = process.env.NEXT_PUBLIC_SITE_URL || 'https://jerseystand.shop'
     const stateCode  = STATE_CODES[shipping_address.state as string] ?? (shipping_address.state as string).substring(0, 3).toUpperCase()
     const ecartBase  = process.env.ECARTPAY_SANDBOX === 'true'
       ? 'https://sandbox.ecartpay.com'

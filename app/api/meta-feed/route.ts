@@ -44,6 +44,7 @@ export async function GET() {
       <g:availability>${inStock ? 'in stock' : 'out of stock'}</g:availability>
       <g:condition>new</g:condition>
       <g:price>${price} MXN</g:price>
+      <g:quantity_to_sell_on_facebook>${(p.variants ?? []).reduce((s, v) => s + v.stock, 0)}</g:quantity_to_sell_on_facebook>
       <g:link>${SITE}/productos/${escapeXml(p.slug)}</g:link>
       <g:image_link>${escapeXml(imageUrl)}</g:image_link>
       <g:brand>Jersey Stand</g:brand>

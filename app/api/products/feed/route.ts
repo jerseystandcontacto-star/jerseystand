@@ -16,6 +16,11 @@ function hasStock(variants: ProductVariant[] | undefined): boolean {
   return (variants ?? []).some((v) => v.stock > 0)
 }
 
+function totalStock(variants: ProductVariant[] | undefined): number {
+  const total = (variants ?? []).reduce((sum, v) => sum + (v.stock ?? 0), 0)
+  return total > 0 ? total : 10
+}
+
 export async function GET() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
@@ -35,6 +40,7 @@ export async function GET() {
       const imageUrl = p.images?.[0] ?? ''
       const description = p.description?.trim() || p.name
       const inStock = hasStock(p.variants)
+      const quantity = totalStock(p.variants)
       const price = p.price.toFixed(2)
 
       return `    <item>
@@ -42,10 +48,11 @@ export async function GET() {
       <g:title>${escapeXml(p.name)}</g:title>
       <g:description>${escapeXml(description)}</g:description>
       <g:price>${price} MXN</g:price>
-      <g:image_link>${escapeXml(imageUrl)}</g:image_link>
       <g:link>${SITE}/productos/${escapeXml(p.slug)}</g:link>
+      <g:image_link>${escapeXml(imageUrl)}</g:image_link>
       <g:availability>${inStock ? 'in stock' : 'out of stock'}</g:availability>
       <g:condition>new</g:condition>
+      <g:quantity>${quantity}</g:quantity>
       <g:brand>Jersey Stand</g:brand>
     </item>`
     })
